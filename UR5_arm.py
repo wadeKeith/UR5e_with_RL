@@ -67,17 +67,19 @@ class UR5Arm:
         self.vel_gain = 1.0
 
         # joints which can be controlled (not fixed)
-        self.control_joint_names = [
-            "base_joint",
-            "shoulder_joint",
-            "elbow_joint",
-            "wrist_1_joint",
-            "wrist_2_joint",
-            "wrist_3_joint",
-        ]
+        self.control_joint_ids = [i for i in range(self._pb.getNumJoints(self.embodiment_id)) if self._pb.getJointInfo(self.embodiment_id, i)[2] != self._pb.JOINT_FIXED]
+        # self.control_joint_names = [
+        #     "base_joint",
+        #     "shoulder_joint",
+        #     "elbow_joint",
+        #     "wrist_1_joint",
+        #     "wrist_2_joint",
+        #     "wrist_3_joint",
+        # ]
+        self.control_joint_names = [self._pb.getJointInfo(self.embodiment_id, i)[1].decode("utf-8") for i in self.control_joint_ids]
 
         # get the control and calculate joint ids in list form, useful for pb array methods
-        self.control_joint_ids = [self.joint_name_to_index[name] for name in self.control_joint_names]
+        assert self.control_joint_ids == [self.joint_name_to_index[name] for name in self.control_joint_names]
         self.num_control_dofs = len(self.control_joint_ids)
 
     def get_current_joint_pos_vel(self):

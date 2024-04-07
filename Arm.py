@@ -35,8 +35,8 @@ class ArmEmbodiment:
         self.base_pos = [0, 0, 0]
         self.base_rpy = [0, 0, 0]
         self.base_orn = self._pb.getQuaternionFromEuler(self.base_rpy)
-        asset_name = os.path.join('/Users/yin/Documents/GitHub/robotics_pybullet_learn/UR5', "ur5/urdfs/ur5.urdf")
-        self.embodiment_id = self._pb.loadURDF(asset_name, self.base_pos, self.base_orn, useFixedBase=True)
+        asset_name = os.path.join('/Users/yin/Documents/GitHub/robotics_pybullet_learn/UR5', "ur5/urdfs/ur5_robotiq_140.urdf")
+        self.embodiment_id = self._pb.loadURDF(asset_name, self.base_pos, self.base_orn, useFixedBase=True, flags=self._pb.URDF_ENABLE_CACHED_GRAPHICS_SHAPES)
 
         # create dicts for mapping link/joint names to corresponding indices
         self.num_joints, self.link_name_to_index, self.joint_name_to_index = self.create_link_joint_mappings(self.embodiment_id)
