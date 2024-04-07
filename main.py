@@ -23,7 +23,7 @@ visual_sensor_params = {
         'show_vision': False
     }
 # 连接物理引擎
-use_gui = True
+use_gui = False
 
 pb = connect_pybullet(timestep, show_gui=use_gui)
 robot_arm_params = {
