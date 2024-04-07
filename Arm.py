@@ -3,12 +3,7 @@ from UR5_arm import UR5Arm
 
 
 class ArmEmbodiment:
-    def __init__(
-        self,
-        pb,
-        robot_arm_params={}
-    ):
-
+    def __init__(self, pb, robot_arm_params={}):
         self._pb = pb
 
         if "tcp_link_name" in robot_arm_params:
@@ -40,18 +35,11 @@ class ArmEmbodiment:
         self.base_pos = [0, 0, 0]
         self.base_rpy = [0, 0, 0]
         self.base_orn = self._pb.getQuaternionFromEuler(self.base_rpy)
-        asset_name = os.path.join(
-            '/Users/yin/Documents/GitHub/robotics_pybullet_learn/UR5',
-            "ur5/urdfs/ur5.urdf"
-        )
-
-        self.embodiment_id = self._pb.loadURDF(
-            asset_name, self.base_pos, self.base_orn, useFixedBase=True
-        )
+        asset_name = os.path.join('/Users/yin/Documents/GitHub/robotics_pybullet_learn/UR5', "ur5/urdfs/ur5.urdf")
+        self.embodiment_id = self._pb.loadURDF(asset_name, self.base_pos, self.base_orn, useFixedBase=True)
 
         # create dicts for mapping link/joint names to corresponding indices
-        self.num_joints, self.link_name_to_index, self.joint_name_to_index = self.create_link_joint_mappings(
-            self.embodiment_id)
+        self.num_joints, self.link_name_to_index, self.joint_name_to_index = self.create_link_joint_mappings(self.embodiment_id)
 
         # get the link and tcp IDs
         self.tcp_link_id = self.link_name_to_index[self.tcp_link_name]
