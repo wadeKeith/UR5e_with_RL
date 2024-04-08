@@ -2,28 +2,22 @@ import numpy as np
 import warnings
 from collections import namedtuple
 import math
+import os
 
 class UR5Robotiq140:
-    def __init__(
-        self,
-        pb,
-        embodiment_id,
-        tcp_link_id,
-        link_name_to_index,
-        joint_name_to_index,
-        rest_poses,
-        reset_gripper_range
-    ):
+    def __init__(self, pb, robot_params):
 
         self._pb = pb
         self.arm_num_dofs = 6
-        self.arm_rest_poses = rest_poses  # default joint pose for ur5
-        self.embodiment_id = embodiment_id
-        self.num_joints = self._pb.getNumJoints(embodiment_id)
-        self.tcp_link_id = tcp_link_id
-        self.link_name_to_index = link_name_to_index
-        self.joint_name_to_index = joint_name_to_index
-        self.gripper_range = reset_gripper_range
+        if "tcp_link_name" in robot_params:
+            self.tcp_link_name = robot_params["tcp_link_name"]
+        else:
+            self.tcp_link_name = "ee_link"
+        self.arm_rest_poses = robot_params["reset_arm_poses"]  # default joint pose for ur5
+        self.gripper_range = robot_params["reset_gripper_range"]
+        self.load_urdf()
+
+        
 
         self._min_constant_vel = 0.0001
         self._max_constant_vel = 0.001
@@ -33,33 +27,43 @@ class UR5Robotiq140:
         self.setup_gripper_info()
 
         # reset the arm to rest poses
-        self.reset()
+        # self.reset()
 
     def close(self):
         if self._pb.isConnected():
             self._pb.disconnect()
 
-    # def reset(self):
-    #     """
-    #     Reset the UR5 to its rest positions and hold.
-    #     """
-    #     # reset the joint positions to a rest position
-    #     for i in range(self.num_joints):
-    #         self._pb.resetJointState(self.embodiment_id, i, self.arm_rest_poses[i])
-    #         self._pb.changeDynamics(self.embodiment_id, i, linearDamping=0.04, angularDamping=0.04)
-    #         self._pb.changeDynamics(self.embodiment_id, i, jointDamping=0.01)
+    def load_urdf(self):
+        """
+        Load the robot arm model into pybullet
+        """
+        self.base_pos = [0, 0, 0]
+        self.base_rpy = [0, 0, 0]
+        self.base_orn = self._pb.getQuaternionFromEuler(self.base_rpy)
+        asset_name = os.path.join('/Users/yin/Documents/GitHub/robotics_pybullet_learn/UR5', "ur5/urdfs/ur5_robotiq_140.urdf")
+        self.embodiment_id = self._pb.loadURDF(asset_name, self.base_pos, self.base_orn, useFixedBase=True, flags=self._pb.URDF_ENABLE_CACHED_GRAPHICS_SHAPES)
 
-    #     # hold in rest pose
-    #     self._pb.setJointMotorControlArray(
-    #         bodyIndex=self.embodiment_id,
-    #         jointIndices=self.control_joint_ids,
-    #         controlMode=self._pb.POSITION_CONTROL,
-    #         targetPositions=self.arm_rest_poses[self.control_joint_ids],
-    #         targetVelocities=[0] * self.num_control_dofs,
-    #         positionGains=[self.pos_gain] * self.num_control_dofs,
-    #         velocityGains=[self.vel_gain] * self.num_control_dofs,
-    #         forces=np.zeros(self.num_control_dofs) + self.max_force,
-    #     )
+        # create dicts for mapping link/joint names to corresponding indices
+        self.num_joints, self.link_name_to_index, self.joint_name_to_index = self.create_link_joint_mappings(self.embodiment_id)
+
+        # get the link and tcp IDs
+        self.tcp_link_id = self.link_name_to_index[self.tcp_link_name]
+
+    def create_link_joint_mappings(self, urdf_id):
+
+        num_joints = self._pb.getNumJoints(urdf_id)
+
+        # pull relevent info for controlling the robot
+        joint_name_to_index = {}
+        link_name_to_index = {}
+        for i in range(num_joints):
+            info = self._pb.getJointInfo(urdf_id, i)
+            joint_name = info[1].decode("utf-8")
+            link_name = info[12].decode("utf-8")
+            joint_name_to_index[joint_name] = i
+            link_name_to_index[link_name] = i
+
+        return num_joints, link_name_to_index, joint_name_to_index
     def reset(self):
         self.reset_arm()
         self.reset_gripper()

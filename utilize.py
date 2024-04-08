@@ -36,19 +36,6 @@ def connect_pybullet(timestep, show_gui=False):
         globalCFM=0.0001,
     )
     return pb
-def load_standard_environment(pb,root_path):
-    """
-    Load a standard environment with a plane and a table.
-    """
-    pb.loadURDF(
-        os.path.join(root_path,"shared_assets/environment_objects/plane/plane.urdf"),
-        [0, 0, -0.625],
-    )
-    pb.loadURDF(
-        os.path.join(root_path,"shared_assets/environment_objects/table/table.urdf"),
-        [0.50, 0.00, -0.625],
-        [0.0, 0.0, 0.0, 1.0],
-)
 
 
 def set_debug_camera(pb, debug_camera_params):

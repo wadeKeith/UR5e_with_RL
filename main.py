@@ -3,9 +3,9 @@ import pybullet_utils.bullet_client as bc
 import time
 from importlib import util
 from pprint import pprint
-from utilize import connect_pybullet, load_standard_environment, set_debug_camera
+from utilize import connect_pybullet, set_debug_camera
 import numpy as np
-from Arm import ArmEmbodiment
+from env import Env
 import math
 
 
@@ -33,8 +33,8 @@ robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
-load_standard_environment(pb,root_path)
-embodiment = ArmEmbodiment(pb, robot_params=robot_params)
+env = Env(pb, robot_params=robot_params,root_path=root_path)
+env.reset()
 set_debug_camera(pb, visual_sensor_params)
 
 
