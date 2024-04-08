@@ -1,9 +1,3 @@
-import pybullet as p
-import pybullet_utils.bullet_client as bc
-import time
-from importlib import util
-from pprint import pprint
-from utilize import connect_pybullet, set_debug_camera
 import numpy as np
 from env import Env
 import math
@@ -25,32 +19,28 @@ visual_sensor_params = {
         'far_val': 100.0,
         'show_vision': False
     }
-# 连接物理引擎
-use_gui = True
-
-pb = connect_pybullet(timestep, show_gui=use_gui)
 robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
-env = Env(pb, robot_params=robot_params,root_path=root_path)
-env.reset()
-set_debug_camera(pb, visual_sensor_params)
 
 
 
-# available_joints_indexes = [i for i in range(p.getNumJoints(robot_id)) if p.getJointInfo(robot_id, i)[2] != p.JOINT_FIXED]
+use_gui = True
+env = Env(use_gui, timestep, robot_params,visual_sensor_params)
+obs = env.reset()
 
-# pprint([p.getJointInfo(robot_id, i)[1] for i in available_joints_indexes])
 
 
-while pb.isConnected():
-    pb.stepSimulation()
-    time.sleep(timestep)
+
+
+while True:
+    env.step_simulation()
+    # time.sleep(timestep)
     q_key = ord("q")
-    keys = pb.getKeyboardEvents()
-    if q_key in keys and keys[q_key] & pb.KEY_WAS_TRIGGERED:
+    keys = env._pb.getKeyboardEvents()
+    if q_key in keys and keys[q_key] & env._pb.KEY_WAS_TRIGGERED:
         exit()
 
 # # 断开连接
-p.disconnect()
+env.close()

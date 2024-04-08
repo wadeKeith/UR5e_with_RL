@@ -87,8 +87,8 @@ class UR5Robotiq140:
             forces=np.zeros(self.arm_num_dofs) + self.max_force,
         )
         # Wait for a few steps
-        # for _ in range(10):
-        #     self.step_simulation()
+        for _ in range(10):
+            self.step_simulation()
 
     def reset_gripper(self):
         self.open_gripper()
@@ -105,6 +105,22 @@ class UR5Robotiq140:
         # Control the mimic gripper joint(s)
         self._pb.setJointMotorControl2(self.embodiment_id, self.mimic_parent_id, self._pb.POSITION_CONTROL, targetPosition=open_angle,
                                 force=self.joints[self.mimic_parent_id].maxForce, maxVelocity=self.joints[self.mimic_parent_id].maxVelocity)
+    def move_ee(self, action, control_method):
+        assert control_method in ('joint', 'end')
+        if control_method == 'end':
+            x, y, z, roll, pitch, yaw = action
+            pos = (x, y, z)
+            orn = self._pb.getQuaternionFromEuler((roll, pitch, yaw))
+            joint_poses = self._pb.calculateInverseKinematics(self.embodiment_id, self.tcp_link_id, pos, orn,
+                                                       self.arm_lower_limits, self.arm_upper_limits, self.arm_joint_ranges, self.arm_rest_poses,
+                                                       maxNumIterations=20)
+        elif control_method == 'joint':
+            assert len(action) == self.arm_num_dofs
+            joint_poses = action
+        # arm
+        for i, joint_id in enumerate(self.arm_controllable_joints):
+            self._pb.setJointMotorControl2(self.embodiment_id, joint_id, self._pb.POSITION_CONTROL, joint_poses[i],
+                                    force=self.joints[joint_id].maxForce, maxVelocity=self.joints[joint_id].maxVelocity)
 
     def setup_ur5_info(self):
         """
@@ -177,7 +193,18 @@ class UR5Robotiq140:
                                    childFramePosition=[0, 0, 0])
             self._pb.changeConstraint(c, gearRatio=-multiplier, maxForce=100, erp=1)  # Note: the mysterious `erp` is of EXTREME importance
 
-        
+    def step_simulation(self):
+        raise RuntimeError('`step_simulation` method of RobotBase Class should be hooked by the environment.')
+    
+    def get_joint_obs(self):
+        positions = []
+        velocities = []
+        for joint_id in self.control_joint_ids:
+            pos, vel, _, _ = self._pb.getJointState(self.embodiment_id, joint_id)
+            positions.append(pos)
+            velocities.append(vel)
+        ee_pos = self._pb.getLinkState(self.embodiment_id, self.tcp_link_id)[0]
+        return dict(positions=positions, velocities=velocities, ee_pos=ee_pos)
 
     def get_current_joint_pos_vel(self):
         """
