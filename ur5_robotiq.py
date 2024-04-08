@@ -203,8 +203,8 @@ class UR5Robotiq140:
             pos, vel, _, _ = self._pb.getJointState(self.embodiment_id, joint_id)
             positions.append(pos)
             velocities.append(vel)
-        ee_pos = self._pb.getLinkState(self.embodiment_id, self.tcp_link_id)[0]
-        return dict(positions=positions, velocities=velocities, ee_pos=ee_pos)
+        ee_pos = np.array(self._pb.getLinkState(self.embodiment_id, self.tcp_link_id)[0],dtype=np.float32)
+        return dict(positions=np.array(positions,dtype=np.float32), velocities=np.array(velocities, dtype=np.float32), ee_pos=ee_pos)
 
     def get_current_joint_pos_vel(self):
         """

@@ -2,9 +2,13 @@ import os
 import time
 from ur5_robotiq import UR5Robotiq140
 from utilize import connect_pybullet, set_debug_camera, Camera
+import gymnasium
+from gymnasium import spaces
+import numpy as np
+import math
 
 
-class Env:
+class Env(gymnasium.Env):
     def __init__(self, show_gui,timestep, robot_params, visual_sensor_params):
         self.vis = show_gui
         self._pb = connect_pybullet(timestep, show_gui=self.vis)
@@ -31,15 +35,38 @@ class Env:
         self.camera = Camera(self._pb, visual_sensor_params)
         if self.vis:
             set_debug_camera(self._pb, visual_sensor_params)
+        rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
+        depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
+        seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
+        positions_obs_space = spaces.Box(low=-3.14159265359, high=3.14159265359, shape=(self.arm_gripper.num_control_dofs,), dtype=np.float32)
+        velocity_bound = np.array([3.16, 3.16, 3.16, 3.3, 3.3, 3.3, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
+        assert velocity_bound.shape[0] == self.arm_gripper.num_control_dofs
+        velocities_obs_space = spaces.Box(-velocity_bound, velocity_bound, dtype=np.float32)
+        ee_pos_bound = np.array([8.5, 8.5, 8.5])
+        ee_pos_obs_space = spaces.Box(-ee_pos_bound, ee_pos_bound, dtype=np.float32)
+        self.observation_space = spaces.Dict({
+            'rgb': rgb_obs_space,
+            'depth': depth_obs_space,
+            'seg': seg_obs_space,
+            'positions': positions_obs_space,
+            'velocities': velocities_obs_space,
+            'ee_pos': ee_pos_obs_space
+        })
+        self.action_space = spaces.Box(low=np.array([-3.14159265359, -3.14159265359, -3.14159265359, -3.14159265359, -3.14159265359, -3.14159265359, 0]), 
+                                       high=np.array([3.14159265359, 3.14159265359, 3.14159265359, 3.14159265359, 3.14159265359, 3.14159265359, 0.085]), 
+                                       dtype=np.float32)
+
     
 
-    def reset(self):
+    def reset(self,seed=None):
         """
         Reset the pose of the arm and sensor
         """
+        np.random.seed(seed)
         self.arm_gripper.reset()
         self.reset_box()
-        return self.get_observation()
+        info = dict(box_opened=self.box_opened, btn_pressed=self.btn_pressed, box_closed=self.box_closed)
+        return (self.get_observation(), info)
 
         # move to the initial position
         # self.arm.move_linear(reset_tcp_pose, quick_mode=True)
@@ -60,23 +87,31 @@ class Env:
         reward = self.update_reward()
         done = True if reward == 1 else False
         info = dict(box_opened=self.box_opened, btn_pressed=self.btn_pressed, box_closed=self.box_closed)
-        return self.get_observation(), reward, done, info
+        q_key = ord("q")
+        keys = self._pb.getKeyboardEvents()
+        if q_key in keys and keys[q_key] & self._pb.KEY_WAS_TRIGGERED:
+            truncated = True
+        else:
+            truncated = False
+        return self.get_observation(), reward, done, truncated, info
 
     def update_reward(self):
-        reward = 0
+        reward = math.exp(-np.linalg.norm(np.array(self._pb.getLinkState(self.boxID,1,1,1)[0])-self.arm_gripper.get_joint_obs()['ee_pos'],ord=2))
         if not self.box_opened:
             if self._pb.getJointState(self.boxID, 1)[0] > 1.9:
                 self.box_opened = True
+                reward +=10
                 print('Box opened!')
         elif not self.btn_pressed:
             if self._pb.getJointState(self.boxID, 0)[0] < - 0.02:
                 self.btn_pressed = True
+                reward +=10
                 print('Btn pressed!')
         else:
             if self._pb.getJointState(self.boxID, 1)[0] < 0.1:
                 print('Box closed!')
                 self.box_closed = True
-                reward = 1
+                reward +=10
         return reward
     
     def step_simulation(self):
@@ -117,3 +152,7 @@ class Env:
     def close(self):
         if self._pb.isConnected():
             self._pb.disconnect()
+    def render(self, mode='human'):
+        pass
+    def seed(self, seed=None):
+        pass
