@@ -6,11 +6,14 @@ from pprint import pprint
 from utilize import connect_pybullet, load_standard_environment, set_debug_camera
 import numpy as np
 from Arm import ArmEmbodiment
+import math
 
 
 root_path = '/Users/yin/Documents/GitHub/robotics_pybullet_learn/UR5'
 timestep = 1/240
-rest_poses = np.array([0.0, 0.315, -1.401, -2.401, -0.908, 1.570, 3.461, 0.0, 0.0, 0.0, 0.0, 0.0])
+reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
+                               math.pi/2, 0]
+reset_gripper_range = [0, 0.085]
 visual_sensor_params = {
         'image_size': [128, 128],
         'dist': 1.0,
@@ -23,14 +26,15 @@ visual_sensor_params = {
         'show_vision': False
     }
 # 连接物理引擎
-use_gui = False
+use_gui = True
 
 pb = connect_pybullet(timestep, show_gui=use_gui)
-robot_arm_params = {
-    "rest_poses": rest_poses,
+robot_params = {
+    "reset_arm_poses": reset_arm_poses,
+    "reset_gripper_range": reset_gripper_range,
 }
 load_standard_environment(pb,root_path)
-embodiment = ArmEmbodiment(pb, robot_arm_params=robot_arm_params)
+embodiment = ArmEmbodiment(pb, robot_params=robot_params)
 set_debug_camera(pb, visual_sensor_params)
 
 

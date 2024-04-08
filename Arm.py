@@ -1,13 +1,13 @@
 import os
-from UR5_arm import UR5Arm
+from UR5_arm import UR5Robotiq140
 
 
 class ArmEmbodiment:
-    def __init__(self, pb, robot_arm_params={}):
+    def __init__(self, pb, robot_params={}):
         self._pb = pb
 
-        if "tcp_link_name" in robot_arm_params:
-            self.tcp_link_name = robot_arm_params["tcp_link_name"]
+        if "tcp_link_name" in robot_params:
+            self.tcp_link_name = robot_params["tcp_link_name"]
         else:
             self.tcp_link_name = "ee_link"
 
@@ -15,13 +15,14 @@ class ArmEmbodiment:
         self.load_urdf()
 
         # instantiate a robot arm
-        self.arm = UR5Arm(
+        self.arm = UR5Robotiq140(
             pb,
             embodiment_id=self.embodiment_id,
             tcp_link_id=self.tcp_link_id,
             link_name_to_index=self.link_name_to_index,
             joint_name_to_index=self.joint_name_to_index,
-            rest_poses=robot_arm_params['rest_poses'],
+            rest_poses=robot_params['reset_arm_poses'],
+            reset_gripper_range=robot_params['reset_gripper_range']
         )
 
     def close(self):

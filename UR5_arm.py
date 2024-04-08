@@ -1,9 +1,9 @@
 import numpy as np
 import warnings
+from collections import namedtuple
+import math
 
-
-
-class UR5Arm:
+class UR5Robotiq140:
     def __init__(
         self,
         pb,
@@ -12,21 +12,25 @@ class UR5Arm:
         link_name_to_index,
         joint_name_to_index,
         rest_poses,
+        reset_gripper_range
     ):
 
         self._pb = pb
-        self.rest_poses = rest_poses  # default joint pose for ur5
+        self.arm_num_dofs = 6
+        self.arm_rest_poses = rest_poses  # default joint pose for ur5
         self.embodiment_id = embodiment_id
         self.num_joints = self._pb.getNumJoints(embodiment_id)
         self.tcp_link_id = tcp_link_id
         self.link_name_to_index = link_name_to_index
         self.joint_name_to_index = joint_name_to_index
+        self.gripper_range = reset_gripper_range
 
         self._min_constant_vel = 0.0001
         self._max_constant_vel = 0.001
         self.set_constant_vel_percentage(percentage=25)
         # set info specific to arm
         self.setup_ur5_info()
+        self.setup_gripper_info()
 
         # reset the arm to rest poses
         self.reset()
@@ -35,27 +39,68 @@ class UR5Arm:
         if self._pb.isConnected():
             self._pb.disconnect()
 
-    def reset(self):
-        """
-        Reset the UR5 to its rest positions and hold.
-        """
-        # reset the joint positions to a rest position
-        for i in range(self.num_joints):
-            self._pb.resetJointState(self.embodiment_id, i, self.rest_poses[i])
-            self._pb.changeDynamics(self.embodiment_id, i, linearDamping=0.04, angularDamping=0.04)
-            self._pb.changeDynamics(self.embodiment_id, i, jointDamping=0.01)
+    # def reset(self):
+    #     """
+    #     Reset the UR5 to its rest positions and hold.
+    #     """
+    #     # reset the joint positions to a rest position
+    #     for i in range(self.num_joints):
+    #         self._pb.resetJointState(self.embodiment_id, i, self.arm_rest_poses[i])
+    #         self._pb.changeDynamics(self.embodiment_id, i, linearDamping=0.04, angularDamping=0.04)
+    #         self._pb.changeDynamics(self.embodiment_id, i, jointDamping=0.01)
 
-        # hold in rest pose
+    #     # hold in rest pose
+    #     self._pb.setJointMotorControlArray(
+    #         bodyIndex=self.embodiment_id,
+    #         jointIndices=self.control_joint_ids,
+    #         controlMode=self._pb.POSITION_CONTROL,
+    #         targetPositions=self.arm_rest_poses[self.control_joint_ids],
+    #         targetVelocities=[0] * self.num_control_dofs,
+    #         positionGains=[self.pos_gain] * self.num_control_dofs,
+    #         velocityGains=[self.vel_gain] * self.num_control_dofs,
+    #         forces=np.zeros(self.num_control_dofs) + self.max_force,
+    #     )
+    def reset(self):
+        self.reset_arm()
+        self.reset_gripper()
+
+    def reset_arm(self):
+        """
+        reset to rest poses
+        """
+        for rest_pose, joint_id in zip(self.arm_rest_poses, self.arm_controllable_joints):
+            self._pb.resetJointState(self.embodiment_id, joint_id, rest_pose)
+            self._pb.changeDynamics(self.embodiment_id, joint_id, linearDamping=0.04, angularDamping=0.04)
+            self._pb.changeDynamics(self.embodiment_id, joint_id, jointDamping=0.01)
         self._pb.setJointMotorControlArray(
             bodyIndex=self.embodiment_id,
-            jointIndices=self.control_joint_ids,
+            jointIndices=self.arm_controllable_joints,
             controlMode=self._pb.POSITION_CONTROL,
-            targetPositions=self.rest_poses[self.control_joint_ids],
-            targetVelocities=[0] * self.num_control_dofs,
-            positionGains=[self.pos_gain] * self.num_control_dofs,
-            velocityGains=[self.vel_gain] * self.num_control_dofs,
-            forces=np.zeros(self.num_control_dofs) + self.max_force,
+            targetPositions=self.arm_rest_poses,
+            targetVelocities=[0] * self.arm_num_dofs,
+            positionGains=[self.pos_gain] * self.arm_num_dofs,
+            velocityGains=[self.vel_gain] * self.arm_num_dofs,
+            forces=np.zeros(self.arm_num_dofs) + self.max_force,
         )
+        # Wait for a few steps
+        # for _ in range(10):
+        #     self.step_simulation()
+
+    def reset_gripper(self):
+        self.open_gripper()
+
+    def open_gripper(self):
+        self.move_gripper(self.gripper_range[1])
+
+    def close_gripper(self):
+        self.move_gripper(self.gripper_range[0])
+
+    def move_gripper(self, open_length):
+        # open_length = np.clip(open_length, *self.gripper_range)
+        open_angle = 0.715 - math.asin((open_length - 0.010) / 0.1143)  # angle calculation
+        # Control the mimic gripper joint(s)
+        self._pb.setJointMotorControl2(self.embodiment_id, self.mimic_parent_id, self._pb.POSITION_CONTROL, targetPosition=open_angle,
+                                force=self.joints[self.mimic_parent_id].maxForce, maxVelocity=self.joints[self.mimic_parent_id].maxVelocity)
 
     def setup_ur5_info(self):
         """
@@ -66,8 +111,30 @@ class UR5Arm:
         self.pos_gain = 1.0
         self.vel_gain = 1.0
 
+        jointInfo = namedtuple('jointInfo', 
+            ['id','name','type','damping','friction','lowerLimit','upperLimit','maxForce','maxVelocity','controllable'])
+        self.joints = []
+        self.control_joint_ids = []
+        for i in range(self._pb.getNumJoints(self.embodiment_id)):
+            info = self._pb.getJointInfo(self.embodiment_id, i)
+            jointID = info[0]
+            jointName = info[1].decode("utf-8")
+            jointType = info[2]  # JOINT_REVOLUTE, JOINT_PRISMATIC, JOINT_SPHERICAL, JOINT_PLANAR, JOINT_FIXED
+            jointDamping = info[6]
+            jointFriction = info[7]
+            jointLowerLimit = info[8]
+            jointUpperLimit = info[9]
+            jointMaxForce = info[10]
+            jointMaxVelocity = info[11]
+            controllable = (jointType != self._pb.JOINT_FIXED)
+            if controllable:
+                self.control_joint_ids.append(jointID)
+                self._pb.setJointMotorControl2(self.embodiment_id, jointID, self._pb.VELOCITY_CONTROL, targetVelocity=0, force=0)
+            info = jointInfo(jointID,jointName,jointType,jointDamping,jointFriction,jointLowerLimit,
+                            jointUpperLimit,jointMaxForce,jointMaxVelocity,controllable)
+            self.joints.append(info)
         # joints which can be controlled (not fixed)
-        self.control_joint_ids = [i for i in range(self._pb.getNumJoints(self.embodiment_id)) if self._pb.getJointInfo(self.embodiment_id, i)[2] != self._pb.JOINT_FIXED]
+        # self.control_joint_ids = [i for i in range(self._pb.getNumJoints(self.embodiment_id)) if self._pb.getJointInfo(self.embodiment_id, i)[2] != self._pb.JOINT_FIXED]
         # self.control_joint_names = [
         #     "base_joint",
         #     "shoulder_joint",
@@ -76,11 +143,37 @@ class UR5Arm:
         #     "wrist_2_joint",
         #     "wrist_3_joint",
         # ]
-        self.control_joint_names = [self._pb.getJointInfo(self.embodiment_id, i)[1].decode("utf-8") for i in self.control_joint_ids]
+        self.control_joint_names = [self.joints[i].name for i in self.control_joint_ids]
 
         # get the control and calculate joint ids in list form, useful for pb array methods
         assert self.control_joint_ids == [self.joint_name_to_index[name] for name in self.control_joint_names]
         self.num_control_dofs = len(self.control_joint_ids)
+        assert self.num_control_dofs >= self.arm_num_dofs
+        self.arm_controllable_joints = self.control_joint_ids[:self.arm_num_dofs]
+        self.arm_lower_limits = [info.lowerLimit for info in self.joints if info.controllable][:self.arm_num_dofs]
+        self.arm_upper_limits = [info.upperLimit for info in self.joints if info.controllable][:self.arm_num_dofs]
+        self.arm_joint_ranges = [info.upperLimit - info.lowerLimit for info in self.joints if info.controllable][:self.arm_num_dofs]
+    
+    def setup_gripper_info(self):
+        mimic_parent_name = 'left_outer_knuckle_joint'
+        mimic_children_names = {'right_outer_knuckle_joint': -1,
+                                'left_inner_knuckle_joint': -1,
+                                'right_inner_knuckle_joint': -1,
+                                'left_inner_finger_joint': 1,
+                                'right_inner_finger_joint': 1}
+        self.mimic_parent_id = [joint.id for joint in self.joints if joint.name == mimic_parent_name][0]
+        self.mimic_child_multiplier = {joint.id: mimic_children_names[joint.name] for joint in self.joints if joint.name in mimic_children_names}
+
+        for joint_id, multiplier in self.mimic_child_multiplier.items():
+            c = self._pb.createConstraint(self.embodiment_id, self.mimic_parent_id,
+                                   self.embodiment_id, joint_id,
+                                   jointType=self._pb.JOINT_GEAR,
+                                   jointAxis=[0, 1, 0],
+                                   parentFramePosition=[0, 0, 0],
+                                   childFramePosition=[0, 0, 0])
+            self._pb.changeConstraint(c, gearRatio=-multiplier, maxForce=100, erp=1)  # Note: the mysterious `erp` is of EXTREME importance
+
+        
 
     def get_current_joint_pos_vel(self):
         """
@@ -178,7 +271,7 @@ class UR5Arm:
             self.tcp_link_id,
             target_pos,
             target_orn,
-            restPoses=self.rest_poses,
+            restPoses=self.arm_rest_poses,
             maxNumIterations=100,
             residualThreshold=1e-8,
         )
