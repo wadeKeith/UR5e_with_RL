@@ -12,6 +12,17 @@ class Env:
             self._pb,
             robot_params=robot_params,
         )
+        self.boxID = self._pb.loadURDF("./assets/urdfs/skew-box-button.urdf",
+                                [0.8, 0.0, 0.0],
+                                # p.getQuaternionFromEuler([0, 1.5706453, 0]),
+                                self._pb.getQuaternionFromEuler([0, 0, 0]),
+                                useFixedBase=True,
+                                flags=self._pb.URDF_MERGE_FIXED_LINKS | self._pb.URDF_USE_SELF_COLLISION)
+        # For calculating the reward
+        self.box_opened = False
+        self.btn_pressed = False
+        self.box_closed = False
+
 
     def close(self):
         if self._pb.isConnected():
@@ -32,11 +43,11 @@ class Env:
         Load a standard environment with a plane and a table.
         """
         self._pb.loadURDF(
-            os.path.join(root_path,"shared_assets/environment_objects/plane/plane.urdf"),
+            "./assets/environment_objects/plane/plane.urdf",
             [0, 0, -0.625],
         )
         self._pb.loadURDF(
-            os.path.join(root_path,"shared_assets/environment_objects/table/table.urdf"),
+            "./assets/environment_objects/table/table.urdf",
             [0.50, 0.00, -0.625],
             [0.0, 0.0, 0.0, 1.0],
     )

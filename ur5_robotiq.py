@@ -40,7 +40,7 @@ class UR5Robotiq140:
         self.base_pos = [0, 0, 0]
         self.base_rpy = [0, 0, 0]
         self.base_orn = self._pb.getQuaternionFromEuler(self.base_rpy)
-        asset_name = os.path.join('/Users/yin/Documents/GitHub/robotics_pybullet_learn/UR5', "ur5/urdfs/ur5_robotiq_140.urdf")
+        asset_name = "./assets/urdfs/ur5_robotiq_140.urdf"
         self.embodiment_id = self._pb.loadURDF(asset_name, self.base_pos, self.base_orn, useFixedBase=True, flags=self._pb.URDF_ENABLE_CACHED_GRAPHICS_SHAPES)
 
         # create dicts for mapping link/joint names to corresponding indices
