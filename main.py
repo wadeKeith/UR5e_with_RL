@@ -33,29 +33,29 @@ use_gui = False
 env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
 
-# vec_env = Env(use_gui, timestep, robot_params,visual_sensor_params)
+vec_env = Env(use_gui, timestep, robot_params,visual_sensor_params)
 # obs,_ = vec_env.reset()
 # obs_next, reward, done, truncated, info = vec_env.step([math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9, math.pi/2, math.pi/4, 0.085])
 # obs_next1, reward1, done, truncated, info = vec_env.step([math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9, math.pi/2, 0, 0.085])
 
 # check_env(vec_env)
 # obs, info = env.reset(seed=seed)
-vec_env = make_vec_env(Env, n_envs=4, env_kwargs = env_kwargs_dict, seed=None)
+# vec_env = make_vec_env(Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=None)
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 
 model = PPO("MultiInputPolicy",vec_env, 
-            learning_rate = 1e-4,
+            learning_rate = 1e-6,
             n_steps=2,
-            batch_size = 8,
-            n_epochs = 100,
+            # batch_size = 1,
+            # n_epochs = 100,
             gamma = 0.99,
             normalize_advantage=True,
             ent_coef = 0.01,
             vf_coef = 0.5,
             max_grad_norm = 0.5,
-            stats_window_size = 10,
+            # stats_window_size = 10,
             # tensorboard_log = root_path + '/logs',
-            seed = seed,
+            # seed = seed,
             verbose=1,
             device='cuda')
 model.learn(total_timesteps=8000, 
@@ -71,11 +71,12 @@ model = PPO.load("./model/ur5_robotiq140_ppo")
 
 use_gui = True
 env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
-vec_env = make_vec_env(Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
-obs = vec_env.reset()
+# vec_env = make_vec_env(Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
+vec_env = Env(use_gui, timestep, robot_params,visual_sensor_params)
+obs,_ = vec_env.reset()
 while True:
     action, _states = model.predict(obs)
-    obs, rewards, dones, info = vec_env.step(action)
+    obs, rewards, dones,truncated, info = vec_env.step(action)
     vec_env.render("human")
 
 
