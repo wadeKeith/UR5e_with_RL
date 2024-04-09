@@ -19,6 +19,7 @@ class Env(gymnasium.Env):
         self.arm_gripper = UR5Robotiq140(
             self._pb,
             robot_params=robot_params,
+            use_gui = self.vis,
         )
         self.arm_gripper.step_simulation = self.step_simulation
         # self.arm_gripper.reset()
@@ -62,14 +63,11 @@ class Env(gymnasium.Env):
         """
         Reset the pose of the arm and sensor
         """
-        np.random.seed(seed)
+        # np.random.seed(seed)
         self.arm_gripper.reset()
         self.reset_box()
         info = dict(box_opened=self.box_opened, btn_pressed=self.btn_pressed, box_closed=self.box_closed)
         return (self.get_observation(), info)
-
-        # move to the initial position
-        # self.arm.move_linear(reset_tcp_pose, quick_mode=True)
 
     def step(self, action, control_method='joint'):
         """
@@ -81,38 +79,59 @@ class Env(gymnasium.Env):
         assert control_method in ('joint', 'end')
         self.arm_gripper.move_ee(action[:-1], control_method)
         self.arm_gripper.move_gripper(action[-1])
-        for _ in range(120):  # Wait for a few steps
+        time_reward = 0
+        while True:
+            obs = self.arm_gripper.get_joint_obs()
             self.step_simulation()
+            time_reward+=1
+            obs_next = self.arm_gripper.get_joint_obs()
+            if np.linalg.norm(obs['positions'] - obs_next['positions'],ord=2)<1e-4:
+                break
+                
 
-        reward = self.update_reward()
-        done = True if reward == 1 else False
+        reward, done = self.update_reward(time_reward)
+        # done = True if reward == 1 else False
         info = dict(box_opened=self.box_opened, btn_pressed=self.btn_pressed, box_closed=self.box_closed)
-        q_key = ord("q")
-        keys = self._pb.getKeyboardEvents()
-        if q_key in keys and keys[q_key] & self._pb.KEY_WAS_TRIGGERED:
-            truncated = True
-        else:
-            truncated = False
+        truncated = False
+        # q_key = ord("q")
+        # keys = self._pb.getKeyboardEvents()
+        # if q_key in keys and keys[q_key] & self._pb.KEY_WAS_TRIGGERED:
+        #     truncated = True
+        # else:
+        #     truncated = False
         return self.get_observation(), reward, done, truncated, info
 
-    def update_reward(self):
-        reward = math.exp(-np.linalg.norm(np.array(self._pb.getLinkState(self.boxID,1,1,1)[0])-self.arm_gripper.get_joint_obs()['ee_pos'],ord=2))
-        if not self.box_opened:
-            if self._pb.getJointState(self.boxID, 1)[0] > 1.9:
-                self.box_opened = True
-                reward +=10
-                print('Box opened!')
-        elif not self.btn_pressed:
-            if self._pb.getJointState(self.boxID, 0)[0] < - 0.02:
-                self.btn_pressed = True
-                reward +=10
-                print('Btn pressed!')
+    def update_reward(self,time_reward):
+        done = False
+        if len(self._pb.getClosestPoints(self.boxID, self.arm_gripper.embodiment_id, 0.01,1, self.arm_gripper.tcp_link_id))==0:
+            box_ee_distance =  np.linalg.norm(np.array(self._pb.getLinkState(self.boxID,1,1,1)[0])-self.arm_gripper.get_joint_obs()['ee_pos'],ord=2)
+            reward = math.exp(-box_ee_distance)
         else:
-            if self._pb.getJointState(self.boxID, 1)[0] < 0.1:
-                print('Box closed!')
-                self.box_closed = True
-                reward +=10
-        return reward
+            box_ee_distance =  np.linalg.norm(np.array(self._pb.getLinkState(self.boxID,1,1,1)[0])-self.arm_gripper.get_joint_obs()['ee_pos'],ord=2)
+            if self._pb.getJointState(self.boxID, 1)[0] <= 1.9:
+                reward = math.exp(-box_ee_distance) + self._pb.getJointState(self.boxID, 1)[0]/3.14159265359
+            else:
+                done = True
+                self.box_opened = True
+                reward = math.exp(-box_ee_distance) + self._pb.getJointState(self.boxID, 1)[0]/3.14159265359
+        # reward = math.exp(-) 1, self.arm_gripper.tcp_link_id
+        # if not self.box_opened:
+        #     if self._pb.getJointState(self.boxID, 1)[0] > 1.9:
+        #         self.box_opened = True
+        #         reward +=10
+        #         print('Box opened!')
+        # elif not self.btn_pressed:
+        #     if self._pb.getJointState(self.boxID, 0)[0] < - 0.02:
+        #         self.btn_pressed = True
+        #         reward +=10
+        #         print('Btn pressed!')
+        # else:
+        #     if self._pb.getJointState(self.boxID, 1)[0] < 0.1:
+        #         print('Box closed!')
+        #         self.box_closed = True
+        #         reward +=10
+        reward = reward+math.exp(-time_reward/300)
+        return reward, done
     
     def step_simulation(self):
         """
@@ -136,8 +155,10 @@ class Env(gymnasium.Env):
             [0.0, 0.0, 0.0, 1.0],
     )
     def reset_box(self):
-        self._pb.setJointMotorControl2(self.boxID, 0, self._pb.POSITION_CONTROL, force=1)
-        self._pb.setJointMotorControl2(self.boxID, 1, self._pb.POSITION_CONTROL, force=1)
+        self._pb.resetJointState(self.boxID, 0, -1.1275702593849252e-18,0)
+        self._pb.resetJointState(self.boxID, 1, 0,0 )
+        # self._pb.setJointMotorControl2(self.boxID, 0, self._pb.POSITION_CONTROL, force=1)
+        # self._pb.setJointMotorControl2(self.boxID, 1, self._pb.POSITION_CONTROL, force=1)
 
     def get_observation(self):
         obs = dict()

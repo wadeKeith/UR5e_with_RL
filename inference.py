@@ -27,7 +27,7 @@ robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
-model = PPO.load("ur5_robotiq140_ppo")
+model = PPO.load("./model/ur5_robotiq140_ppo")
 use_gui = True
 env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 vec_env = make_vec_env(Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)

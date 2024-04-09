@@ -6,6 +6,7 @@ import gymnasium as gym
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 root_path = '/Users/yin/Documents/GitHub/robotics_pybullet_learn/UR5'
 timestep = 1/240
@@ -32,15 +33,20 @@ use_gui = False
 env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
 
-# env = Env(use_gui, timestep, robot_params,visual_sensor_params)
-# check_env(env)
+# vec_env = Env(use_gui, timestep, robot_params,visual_sensor_params)
+# obs,_ = vec_env.reset()
+# obs_next, reward, done, truncated, info = vec_env.step([math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9, math.pi/2, math.pi/4, 0.085])
+# obs_next1, reward1, done, truncated, info = vec_env.step([math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9, math.pi/2, 0, 0.085])
+
+# check_env(vec_env)
 # obs, info = env.reset(seed=seed)
-vec_env = make_vec_env(Env, n_envs=4, env_kwargs = env_kwargs_dict, seed=seed)
+vec_env = make_vec_env(Env, n_envs=4, env_kwargs = env_kwargs_dict, seed=None)
+# vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 
 model = PPO("MultiInputPolicy",vec_env, 
             learning_rate = 1e-4,
-            n_steps=2,
-            batch_size = 2,
+            # n_steps=2,
+            batch_size = 64,
             n_epochs = 100,
             gamma = 0.99,
             normalize_advantage=True,
@@ -52,7 +58,10 @@ model = PPO("MultiInputPolicy",vec_env,
             seed = seed,
             verbose=1,
             device='mps')
-model.learn(total_timesteps=100, log_interval=1, tb_log_name="ur5_robotiq140_ppo",progress_bar=True)
+model.learn(total_timesteps=8000, 
+            log_interval=80, 
+            # tb_log_name="ur5_robotiq140_ppo",
+            progress_bar=True)
 model.save("./model/ur5_robotiq140_ppo")
 
 del model # remove to demonstrate saving and loading

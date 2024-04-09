@@ -5,8 +5,8 @@ import math
 import os
 
 class UR5Robotiq140:
-    def __init__(self, pb, robot_params):
-
+    def __init__(self, pb, robot_params, use_gui):
+        self.vis = use_gui
         self._pb = pb
         self.arm_num_dofs = 6
         if "tcp_link_name" in robot_params:
@@ -73,25 +73,24 @@ class UR5Robotiq140:
         reset to rest poses
         """
         for rest_pose, joint_id in zip(self.arm_rest_poses, self.arm_controllable_joints):
-            self._pb.resetJointState(self.embodiment_id, joint_id, rest_pose)
+            self._pb.resetJointState(self.embodiment_id, joint_id, rest_pose, 0)
             self._pb.changeDynamics(self.embodiment_id, joint_id, linearDamping=0.04, angularDamping=0.04)
             self._pb.changeDynamics(self.embodiment_id, joint_id, jointDamping=0.01)
-        self._pb.setJointMotorControlArray(
-            bodyIndex=self.embodiment_id,
-            jointIndices=self.arm_controllable_joints,
-            controlMode=self._pb.POSITION_CONTROL,
-            targetPositions=self.arm_rest_poses,
-            targetVelocities=[0] * self.arm_num_dofs,
-            positionGains=[self.pos_gain] * self.arm_num_dofs,
-            velocityGains=[self.vel_gain] * self.arm_num_dofs,
-            forces=np.zeros(self.arm_num_dofs) + self.max_force,
-        )
-        # Wait for a few steps
-        for _ in range(10):
-            self.step_simulation()
+        # self._pb.setJointMotorControlArray(
+        #     bodyIndex=self.embodiment_id,
+        #     jointIndices=self.arm_controllable_joints,
+        #     controlMode=self._pb.POSITION_CONTROL,
+        #     targetPositions=self.arm_rest_poses,
+        #     targetVelocities=[0] * self.arm_num_dofs,
+        #     positionGains=[self.pos_gain] * self.arm_num_dofs,
+        #     velocityGains=[self.vel_gain] * self.arm_num_dofs,
+        #     forces=np.zeros(self.arm_num_dofs) + self.max_force,
+        # )
 
     def reset_gripper(self):
-        self.open_gripper()
+        open_angle = 0.715 - math.asin((self.gripper_range[1] - 0.010) / 0.1143)  # angle calculation
+        self._pb.resetJointState(self.embodiment_id, self.mimic_parent_id, open_angle, 0)
+        # self.open_gripper()
 
     def open_gripper(self):
         self.move_gripper(self.gripper_range[1])
