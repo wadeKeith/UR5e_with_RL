@@ -45,8 +45,8 @@ vec_env = make_vec_env(Env, n_envs=4, env_kwargs = env_kwargs_dict, seed=None)
 
 model = PPO("MultiInputPolicy",vec_env, 
             learning_rate = 1e-4,
-            # n_steps=2,
-            batch_size = 64,
+            n_steps=2,
+            batch_size = 8,
             n_epochs = 100,
             gamma = 0.99,
             normalize_advantage=True,
@@ -57,7 +57,7 @@ model = PPO("MultiInputPolicy",vec_env,
             # tensorboard_log = root_path + '/logs',
             seed = seed,
             verbose=1,
-            device='mps')
+            device='cuda')
 model.learn(total_timesteps=8000, 
             log_interval=80, 
             # tb_log_name="ur5_robotiq140_ppo",

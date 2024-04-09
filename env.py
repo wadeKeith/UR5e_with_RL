@@ -56,6 +56,8 @@ class Env(gymnasium.Env):
         self.action_space = spaces.Box(low=np.array([-3.14159265359, -3.14159265359, -3.14159265359, -3.14159265359, -3.14159265359, -3.14159265359, 0]), 
                                        high=np.array([3.14159265359, 3.14159265359, 3.14159265359, 3.14159265359, 3.14159265359, 3.14159265359, 0.085]), 
                                        dtype=np.float32)
+        self.time = None
+        self.step_limit = 100
 
     
 
@@ -66,7 +68,8 @@ class Env(gymnasium.Env):
         # np.random.seed(seed)
         self.arm_gripper.reset()
         self.reset_box()
-        info = dict(box_opened=self.box_opened, btn_pressed=self.btn_pressed, box_closed=self.box_closed)
+        self.time = 0
+        info = dict(box_state='initial')
         return (self.get_observation(), info)
 
     def step(self, action, control_method='joint'):
@@ -76,6 +79,7 @@ class Env(gymnasium.Env):
         control_method:  'end' for end effector position control
                          'joint' for joint position control
         """
+        truncated = False
         assert control_method in ('joint', 'end')
         self.arm_gripper.move_ee(action[:-1], control_method)
         self.arm_gripper.move_gripper(action[-1])
@@ -87,12 +91,18 @@ class Env(gymnasium.Env):
             obs_next = self.arm_gripper.get_joint_obs()
             if np.linalg.norm(obs['positions'] - obs_next['positions'],ord=2)<1e-4:
                 break
+            elif time_reward>=300:
+                break
                 
 
-        reward, done = self.update_reward(time_reward)
+        reward, done, info_r = self.update_reward(time_reward)
         # done = True if reward == 1 else False
-        info = dict(box_opened=self.box_opened, btn_pressed=self.btn_pressed, box_closed=self.box_closed)
-        truncated = False
+        info = dict(box_state=info_r)
+        self.time =+ 1
+        if self.time>=self.step_limit:
+            truncated = True
+            done = True
+        
         # q_key = ord("q")
         # keys = self._pb.getKeyboardEvents()
         # if q_key in keys and keys[q_key] & self._pb.KEY_WAS_TRIGGERED:
@@ -106,14 +116,17 @@ class Env(gymnasium.Env):
         if len(self._pb.getClosestPoints(self.boxID, self.arm_gripper.embodiment_id, 0.01,1, self.arm_gripper.tcp_link_id))==0:
             box_ee_distance =  np.linalg.norm(np.array(self._pb.getLinkState(self.boxID,1,1,1)[0])-self.arm_gripper.get_joint_obs()['ee_pos'],ord=2)
             reward = math.exp(-box_ee_distance)
+            info = 'far from box'
         else:
             box_ee_distance =  np.linalg.norm(np.array(self._pb.getLinkState(self.boxID,1,1,1)[0])-self.arm_gripper.get_joint_obs()['ee_pos'],ord=2)
             if self._pb.getJointState(self.boxID, 1)[0] <= 1.9:
                 reward = math.exp(-box_ee_distance) + self._pb.getJointState(self.boxID, 1)[0]/3.14159265359
+                info = 'close to box'
             else:
                 done = True
                 self.box_opened = True
                 reward = math.exp(-box_ee_distance) + self._pb.getJointState(self.boxID, 1)[0]/3.14159265359
+                info = 'open box'
         # reward = math.exp(-) 1, self.arm_gripper.tcp_link_id
         # if not self.box_opened:
         #     if self._pb.getJointState(self.boxID, 1)[0] > 1.9:
@@ -131,7 +144,7 @@ class Env(gymnasium.Env):
         #         self.box_closed = True
         #         reward +=10
         reward = reward+math.exp(-time_reward/300)
-        return reward, done
+        return reward, done, info
     
     def step_simulation(self):
         """
