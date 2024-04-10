@@ -1,18 +1,20 @@
 import os
 import time
 from ur5_robotiq import UR5Robotiq140
-from utilize import connect_pybullet, set_debug_camera, Camera
+from utilize import connect_pybullet, set_debug_camera, Camera, distance
 import gymnasium
 from gymnasium import spaces
 import numpy as np
 import math
 
 
-class Env(gymnasium.Env):
-    def __init__(self, show_gui,timestep, robot_params, visual_sensor_params):
+class UR5Env(gymnasium.Env):
+    def __init__(self, show_gui,timestep, robot_params, visual_sensor_params,control_type='joint'):
+        super().__init__()
         self.vis = show_gui
         self._pb = connect_pybullet(timestep, show_gui=self.vis)
         self.SIMULATION_STEP_DELAY = timestep
+        self.control_type = control_type
         self.load_standard_environment()
 
         # instantiate a robot arm
@@ -40,7 +42,7 @@ class Env(gymnasium.Env):
         depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
         seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
         positions_obs_space = spaces.Box(low=-3.14159265359, high=3.14159265359, shape=(self.arm_gripper.num_control_dofs,), dtype=np.float32)
-        velocity_bound = np.array([3.16, 3.16, 3.16, 3.3, 3.3, 3.3, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
+        velocity_bound = np.array([3.16, 3.16, 3.16, 3.3, 3.3, 3.3, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1])
         assert velocity_bound.shape[0] == self.arm_gripper.num_control_dofs
         velocities_obs_space = spaces.Box(-velocity_bound, velocity_bound, dtype=np.float32)
         ee_pos_bound = np.array([8.5, 8.5, 8.5])
@@ -51,13 +53,14 @@ class Env(gymnasium.Env):
             'seg': seg_obs_space,
             'positions': positions_obs_space,
             'velocities': velocities_obs_space,
-            'ee_pos': ee_pos_obs_space
+            'finger_pos': ee_pos_obs_space
         })
-        self.action_space = spaces.Box(low=np.array([-3.14159265359, -3.14159265359, -3.14159265359, -3.14159265359, -3.14159265359, -3.14159265359, 0]), 
-                                       high=np.array([3.14159265359, 3.14159265359, 3.14159265359, 3.14159265359, 3.14159265359, 3.14159265359, 0.085]), 
-                                       dtype=np.float32)
+        n_action = 4 if self.control_type == "ee" else 7  # control (x, y z) if "ee", else, control the 7 joints
+        self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
+
         self.time = None
-        self.step_limit = 100
+        self.step_limit = 300
+        self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.165])
 
     
 
@@ -70,9 +73,11 @@ class Env(gymnasium.Env):
         self.reset_box()
         self.time = 0
         info = dict(box_state='initial')
+        # self._pb.addUserDebugPoints(pointPositions = [[0.48, -0.17256, 0.186809]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
+        # self._pb.addUserDebugPoints(pointPositions = [[0.645, 1.4456028966473391e-18, 0.165]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
         return (self.get_observation(), info)
 
-    def step(self, action, control_method='joint'):
+    def step(self, action):
         """
         action: (x, y, z, roll, pitch, yaw, gripper_opening_length) for End Effector Position Control
                 (a1, a2, a3, a4, a5, a6, a7, gripper_opening_length) for Joint Position Control
@@ -80,71 +85,35 @@ class Env(gymnasium.Env):
                          'joint' for joint position control
         """
         truncated = False
-        assert control_method in ('joint', 'end')
-        self.arm_gripper.move_ee(action[:-1], control_method)
+        assert self.control_type in ('joint', 'end')
+        self.arm_gripper.move_ee(action[:-1], self.control_type)
         self.arm_gripper.move_gripper(action[-1])
-        time_reward = 0
-        while True:
-            obs = self.arm_gripper.get_joint_obs()
-            self.step_simulation()
-            time_reward+=1
-            obs_next = self.arm_gripper.get_joint_obs()
-            if np.linalg.norm(obs['positions'] - obs_next['positions'],ord=2)<1e-4:
-                break
-            elif time_reward>=300:
-                break
-                
-
-        reward, done, info_r = self.update_reward(time_reward)
+        self.step_simulation()
+        reward, terminated, info_r = self.update_reward()
         # done = True if reward == 1 else False
         info = dict(box_state=info_r)
         self.time =+ 1
-        if self.time>=self.step_limit:
+        if self.time > self.step_limit:
             truncated = True
-            done = True
-        
-        # q_key = ord("q")
-        # keys = self._pb.getKeyboardEvents()
-        # if q_key in keys and keys[q_key] & self._pb.KEY_WAS_TRIGGERED:
-        #     truncated = True
-        # else:
-        #     truncated = False
-        return self.get_observation(), reward, done, truncated, info
+        return self.get_observation(), reward, terminated, truncated, info
 
-    def update_reward(self,time_reward):
-        done = False
-        if len(self._pb.getClosestPoints(self.boxID, self.arm_gripper.embodiment_id, 0.01,1, self.arm_gripper.tcp_link_id))==0:
-            box_ee_distance =  np.linalg.norm(np.array(self._pb.getLinkState(self.boxID,1,1,1)[0])-self.arm_gripper.get_joint_obs()['ee_pos'],ord=2)
-            reward = math.exp(-box_ee_distance)
+    def update_reward(self):
+        terminated = False
+        handle_finger_distance =  distance(np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.left_finger_pad_id)[0]),self.handle_pos)
+        if handle_finger_distance>0.05:
+            reward = math.exp(-handle_finger_distance)
             info = 'far from box'
         else:
-            box_ee_distance =  np.linalg.norm(np.array(self._pb.getLinkState(self.boxID,1,1,1)[0])-self.arm_gripper.get_joint_obs()['ee_pos'],ord=2)
-            if self._pb.getJointState(self.boxID, 1)[0] <= 1.9:
-                reward = math.exp(-box_ee_distance) + self._pb.getJointState(self.boxID, 1)[0]/3.14159265359
+            rot_box =  self._pb.getJointState(self.boxID, 1)[0]
+            if rot_box <= 1.9:
+                reward = math.exp(-handle_finger_distance) + rot_box/3.14159265359
                 info = 'close to box'
             else:
-                done = True
+                terminated = True
                 self.box_opened = True
-                reward = math.exp(-box_ee_distance) + self._pb.getJointState(self.boxID, 1)[0]/3.14159265359
+                reward = math.exp(-handle_finger_distance) + rot_box/3.14159265359
                 info = 'open box'
-        # reward = math.exp(-) 1, self.arm_gripper.tcp_link_id
-        # if not self.box_opened:
-        #     if self._pb.getJointState(self.boxID, 1)[0] > 1.9:
-        #         self.box_opened = True
-        #         reward +=10
-        #         print('Box opened!')
-        # elif not self.btn_pressed:
-        #     if self._pb.getJointState(self.boxID, 0)[0] < - 0.02:
-        #         self.btn_pressed = True
-        #         reward +=10
-        #         print('Btn pressed!')
-        # else:
-        #     if self._pb.getJointState(self.boxID, 1)[0] < 0.1:
-        #         print('Box closed!')
-        #         self.box_closed = True
-        #         reward +=10
-        reward = reward+math.exp(-time_reward/300)
-        return reward, done, info
+        return reward, terminated, info
     
     def step_simulation(self):
         """
@@ -170,8 +139,7 @@ class Env(gymnasium.Env):
     def reset_box(self):
         self._pb.resetJointState(self.boxID, 0, -1.1275702593849252e-18,0)
         self._pb.resetJointState(self.boxID, 1, 0,0 )
-        # self._pb.setJointMotorControl2(self.boxID, 0, self._pb.POSITION_CONTROL, force=1)
-        # self._pb.setJointMotorControl2(self.boxID, 1, self._pb.POSITION_CONTROL, force=1)
+
 
     def get_observation(self):
         obs = dict()

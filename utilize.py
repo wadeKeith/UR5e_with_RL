@@ -9,9 +9,16 @@ def connect_pybullet(timestep, show_gui=False):
     """
     if show_gui:
         pb = bc.BulletClient(connection_mode=p.GUI)
-        # pb.configureDebugVisualizer(pb.COV_ENABLE_RGB_BUFFER_PREVIEW, 0)
-        # pb.configureDebugVisualizer(pb.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
-        # pb.configureDebugVisualizer(pb.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
+        pb.configureDebugVisualizer(pb.COV_ENABLE_RGB_BUFFER_PREVIEW, 0)
+        pb.configureDebugVisualizer(pb.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
+        pb.configureDebugVisualizer(pb.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
+        # pb.configureDebugVisualizer(pb.COV_ENABLE_RENDERING, 0)
+        # 不展示GUI的套件
+        pb.configureDebugVisualizer(pb.COV_ENABLE_GUI, 0)
+        # 禁用 tinyrenderer 
+        # pb.configureDebugVisualizer(pb.COV_ENABLE_TINY_RENDERER, 0)
+        # pb.configureDebugVisualizer(pb.COV_ENABLE_Y_AXIS_UP, 1)
+        
     else:
         pb = bc.BulletClient(connection_mode=p.DIRECT)
 
@@ -41,6 +48,18 @@ def set_debug_camera(pb, debug_camera_params):
         debug_camera_params['pitch'],
         debug_camera_params['pos']
     )
+def distance(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Compute the distance between two array. This function is vectorized.
+
+    Args:
+        a (np.ndarray): First array.
+        b (np.ndarray): Second array.
+
+    Returns:
+        np.ndarray: The distance between the arrays.
+    """
+    assert a.shape == b.shape
+    return np.linalg.norm(a - b, axis=-1)
 
 class Camera:
     def __init__(self, pb, debug_camera_params):

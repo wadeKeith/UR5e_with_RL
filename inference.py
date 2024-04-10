@@ -1,5 +1,5 @@
 import numpy as np
-from env import Env
+from env import UR5Env
 import math
 from stable_baselines3.common.env_checker import check_env
 import gymnasium as gym
@@ -27,13 +27,17 @@ robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
+control_type = 'joint'
+
 model = PPO.load("./model/ur5_robotiq140_ppo")
+
 use_gui = True
-env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
-# vec_env = make_vec_env(Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
-vec_env = Env(use_gui, timestep, robot_params,visual_sensor_params)
-obs,_ = vec_env.reset()
+# env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
+vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
+vec_env = make_vec_env(lambda:vec_env, n_envs=1, seed=seed)
+# vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
+obs = vec_env.reset()
 while True:
     action, _states = model.predict(obs)
-    obs, rewards, dones,truncated, info = vec_env.step(action)
+    obs, rewards, dones, info = vec_env.step(action)
     vec_env.render("human")

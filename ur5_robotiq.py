@@ -9,6 +9,7 @@ class UR5Robotiq140:
         self.vis = use_gui
         self._pb = pb
         self.arm_num_dofs = 6
+        self.action_scale = 0.05
         if "tcp_link_name" in robot_params:
             self.tcp_link_name = robot_params["tcp_link_name"]
         else:
@@ -16,7 +17,7 @@ class UR5Robotiq140:
         self.arm_rest_poses = robot_params["reset_arm_poses"]  # default joint pose for ur5
         self.gripper_range = robot_params["reset_gripper_range"]
         self.load_urdf()
-
+        self.left_finger_pad_id = self.link_name_to_index['left_inner_finger_pad']
         
 
         self._min_constant_vel = 0.0001
@@ -65,57 +66,52 @@ class UR5Robotiq140:
 
         return num_joints, link_name_to_index, joint_name_to_index
     def reset(self):
-        self.reset_arm()
-        self.reset_gripper()
-
-    def reset_arm(self):
-        """
-        reset to rest poses
-        """
         for rest_pose, joint_id in zip(self.arm_rest_poses, self.arm_controllable_joints):
             self._pb.resetJointState(self.embodiment_id, joint_id, rest_pose, 0)
             self._pb.changeDynamics(self.embodiment_id, joint_id, linearDamping=0.04, angularDamping=0.04)
             self._pb.changeDynamics(self.embodiment_id, joint_id, jointDamping=0.01)
-        # self._pb.setJointMotorControlArray(
-        #     bodyIndex=self.embodiment_id,
-        #     jointIndices=self.arm_controllable_joints,
-        #     controlMode=self._pb.POSITION_CONTROL,
-        #     targetPositions=self.arm_rest_poses,
-        #     targetVelocities=[0] * self.arm_num_dofs,
-        #     positionGains=[self.pos_gain] * self.arm_num_dofs,
-        #     velocityGains=[self.vel_gain] * self.arm_num_dofs,
-        #     forces=np.zeros(self.arm_num_dofs) + self.max_force,
-        # )
-
-    def reset_gripper(self):
         open_angle = 0.715 - math.asin((self.gripper_range[1] - 0.010) / 0.1143)  # angle calculation
         self._pb.resetJointState(self.embodiment_id, self.mimic_parent_id, open_angle, 0)
-        # self.open_gripper()
-
+        
+        
     def open_gripper(self):
-        self.move_gripper(self.gripper_range[1])
+        current_gripper_open_length = math.sin(0.715-self._pb.getJointState(self.embodiment_id, self.mimic_parent_id)[0])*0.1143 + 0.010
+        action = (self.gripper_range[1] - current_gripper_open_length) / 0.02
+        self.move_gripper(action)
 
     def close_gripper(self):
-        self.move_gripper(self.gripper_range[0])
+        current_gripper_open_length = math.sin(0.715-self._pb.getJointState(self.embodiment_id, self.mimic_parent_id)[0])*0.1143 + 0.010
+        action = (self.gripper_range[0] - current_gripper_open_length) / 0.02
+        self.move_gripper(action)
 
-    def move_gripper(self, open_length):
-        # open_length = np.clip(open_length, *self.gripper_range)
-        open_angle = 0.715 - math.asin((open_length - 0.010) / 0.1143)  # angle calculation
+    def move_gripper(self, action):
+        current_gripper_open_length = math.sin(0.715-self._pb.getJointState(self.embodiment_id, self.mimic_parent_id)[0])*0.1143 + 0.010
+        target_gripper_open_length = np.clip(current_gripper_open_length + action * 0.02, *self.gripper_range)
+        open_angle = 0.715 - math.asin((target_gripper_open_length - 0.010) / 0.1143)  # angle calculation
         # Control the mimic gripper joint(s)
         self._pb.setJointMotorControl2(self.embodiment_id, self.mimic_parent_id, self._pb.POSITION_CONTROL, targetPosition=open_angle,
                                 force=self.joints[self.mimic_parent_id].maxForce, maxVelocity=self.joints[self.mimic_parent_id].maxVelocity)
     def move_ee(self, action, control_method):
+        '''
+        Move the end effector of the robot
+        action: (np.ndarray)
+        '''
         assert control_method in ('joint', 'end')
         if control_method == 'end':
-            x, y, z, roll, pitch, yaw = action
-            pos = (x, y, z)
-            orn = self._pb.getQuaternionFromEuler((roll, pitch, yaw))
-            joint_poses = self._pb.calculateInverseKinematics(self.embodiment_id, self.tcp_link_id, pos, orn,
+            ee_displacement = action[:3] * self.action_scale  # limit maximum change in position
+            ee_position =np.array(self._pb.getLinkState(self.embodiment_id, self.tcp_link_id)[0])
+            target_ee_position = ee_position + ee_displacement
+            # Clip the height target. For some reason, it has a great impact on learning
+            target_ee_position[2] = np.max((0, target_ee_position[2]))
+            joint_poses =np.array(self._pb.calculateInverseKinematics(self.embodiment_id, self.tcp_link_id, target_ee_position, np.array([1.0, 0.0, 0.0, 0.0]),
                                                        self.arm_lower_limits, self.arm_upper_limits, self.arm_joint_ranges, self.arm_rest_poses,
-                                                       maxNumIterations=20)
+                                                       maxNumIterations=20))
+            joint_poses = joint_poses[:self.arm_num_dofs]
         elif control_method == 'joint':
             assert len(action) == self.arm_num_dofs
-            joint_poses = action
+            arm_joint_ctrl = action * self.action_scale  # limit maximum change in position
+            current_arm_joint_angles = np.array([self._pb.getJointState(self.embodiment_id, i)[0] for i in self.arm_controllable_joints])
+            joint_poses = current_arm_joint_angles + arm_joint_ctrl
         # arm
         for i, joint_id in enumerate(self.arm_controllable_joints):
             self._pb.setJointMotorControl2(self.embodiment_id, joint_id, self._pb.POSITION_CONTROL, joint_poses[i],
@@ -152,16 +148,6 @@ class UR5Robotiq140:
             info = jointInfo(jointID,jointName,jointType,jointDamping,jointFriction,jointLowerLimit,
                             jointUpperLimit,jointMaxForce,jointMaxVelocity,controllable)
             self.joints.append(info)
-        # joints which can be controlled (not fixed)
-        # self.control_joint_ids = [i for i in range(self._pb.getNumJoints(self.embodiment_id)) if self._pb.getJointInfo(self.embodiment_id, i)[2] != self._pb.JOINT_FIXED]
-        # self.control_joint_names = [
-        #     "base_joint",
-        #     "shoulder_joint",
-        #     "elbow_joint",
-        #     "wrist_1_joint",
-        #     "wrist_2_joint",
-        #     "wrist_3_joint",
-        # ]
         self.control_joint_names = [self.joints[i].name for i in self.control_joint_ids]
 
         # get the control and calculate joint ids in list form, useful for pb array methods
@@ -202,8 +188,8 @@ class UR5Robotiq140:
             pos, vel, _, _ = self._pb.getJointState(self.embodiment_id, joint_id)
             positions.append(pos)
             velocities.append(vel)
-        ee_pos = np.array(self._pb.getLinkState(self.embodiment_id, self.tcp_link_id)[0],dtype=np.float32)
-        return dict(positions=np.array(positions,dtype=np.float32), velocities=np.array(velocities, dtype=np.float32), ee_pos=ee_pos)
+        finger_pos = np.array(self._pb.getLinkState(self.embodiment_id, self.left_finger_pad_id)[0],dtype=np.float32)
+        return dict(positions=np.array(positions,dtype=np.float32), velocities=np.array(velocities, dtype=np.float32), finger_pos=finger_pos)
 
     def get_current_joint_pos_vel(self):
         """
