@@ -71,7 +71,7 @@ model = PPO("MultiInputPolicy",vec_env,
             verbose=1,
             device='cuda')
 model.learn(total_timesteps=25000, 
-            log_interval=100, 
+            log_interval=1,
             # tb_log_name="ur5_robotiq140_ppo",
             progress_bar=True)
 model.save("./model/ur5_robotiq140_ppo")
