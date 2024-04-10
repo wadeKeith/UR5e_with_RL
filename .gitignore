@@ -2,5 +2,5 @@ __pycache__*
 *.pyc
 .DS_Store
 *.zip
-model/ur5_robotiq140_ppo.zip
 model/*
+logs/*

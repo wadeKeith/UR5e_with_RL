@@ -31,12 +31,11 @@ robot_params = {
 }
 use_gui = False
 control_type = 'joint'
-# env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params, "control_type": control_type}
+env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params, "control_type": control_type}
 
 
 
-
-vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
+# vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
 # check_env(vec_env)
 # obs, info = env.reset(seed=seed)
 # vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
@@ -52,8 +51,8 @@ vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_ty
 # obs_next, reward, done, truncated, info = vec_env.step([math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9, math.pi/2, math.pi/4, 0.085])
 # obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1,-1]))
 
-vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
-# vec_env = make_vec_env(UR5Env, n_envs=16, env_kwargs = env_kwargs_dict, seed=None)
+# vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
+vec_env = make_vec_env(UR5Env, n_envs=16, env_kwargs = env_kwargs_dict, seed=seed)
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 
 model = PPO("MultiInputPolicy",vec_env, 
@@ -67,7 +66,7 @@ model = PPO("MultiInputPolicy",vec_env,
             vf_coef = 0.5,
             max_grad_norm = 0.5,
             stats_window_size = 10,
-            tensorboard_log = '/logs',
+            tensorboard_log = './logs',
             seed = seed,
             verbose=1,
             device='cuda')
@@ -85,7 +84,7 @@ model = PPO.load("./model/ur5_robotiq140_ppo")
 use_gui = True
 # env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
-vec_env = make_vec_env(lambda:vec_env, n_envs=1, seed=seed)
+vec_env = make_vec_env(lambda:vec_env, seed=seed)
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 obs = vec_env.reset()
 while True:
