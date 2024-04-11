@@ -29,9 +29,9 @@ robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
-control_type = 'end'
+control_type = 'joint'
 
-stats_path = os.path.join('./normalize_file/', "vec_normalize.pkl")
+stats_path = os.path.join('./normalize_file/', "vec_normalize_ppo.pkl")
 use_gui = True
 # env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)

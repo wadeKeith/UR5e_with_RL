@@ -68,7 +68,7 @@ class UR5Env(gymnasium.Env):
 
         self.time = None
         self.step_limit = 30000
-        self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.165])
+        self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
 
     
 
@@ -113,18 +113,19 @@ class UR5Env(gymnasium.Env):
         terminated = False
         handle_finger_distance =  distance(np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.left_finger_pad_id)[0]),self.handle_pos)
         if handle_finger_distance>0.05:
-            reward = math.exp(-handle_finger_distance*100)
+            reward = -handle_finger_distance
             info = 'far from box'
         else:
             rot_box =  self._pb.getJointState(self.boxID, 1)[0]
             terminated = True
             if rot_box <= 1.9:
-                reward = math.exp(-handle_finger_distance*100) + rot_box/3.14159265359
+                reward = -handle_finger_distance + rot_box/3.14159265359
                 info = 'close to box'
             else:
                 self.box_opened = True
-                reward = math.exp(-handle_finger_distance*100) + rot_box/3.14159265359
+                reward = -handle_finger_distance + rot_box/3.14159265359
                 info = 'open box'
+            reward+= 10000
         return reward, terminated, info
     
     def step_simulation(self):

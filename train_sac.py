@@ -33,7 +33,7 @@ robot_params = {
     "reset_gripper_range": reset_gripper_range,
 }
 use_gui = False
-control_type = 'end'
+control_type = 'joint'
 env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params, "control_type": control_type}
 
 
