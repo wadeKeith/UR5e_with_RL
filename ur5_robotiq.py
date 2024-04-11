@@ -9,7 +9,8 @@ class UR5Robotiq140:
         self.vis = use_gui
         self._pb = pb
         self.arm_num_dofs = 6
-        self.action_scale = 0.05
+        self.action_scale = 0.02
+        self.gripper_scale = 0.02
         if "tcp_link_name" in robot_params:
             self.tcp_link_name = robot_params["tcp_link_name"]
         else:
@@ -76,17 +77,17 @@ class UR5Robotiq140:
         
     def open_gripper(self):
         current_gripper_open_length = math.sin(0.715-self._pb.getJointState(self.embodiment_id, self.mimic_parent_id)[0])*0.1143 + 0.010
-        action = (self.gripper_range[1] - current_gripper_open_length) / 0.02
+        action = (self.gripper_range[1] - current_gripper_open_length) / self.gripper_scale
         self.move_gripper(action)
 
     def close_gripper(self):
         current_gripper_open_length = math.sin(0.715-self._pb.getJointState(self.embodiment_id, self.mimic_parent_id)[0])*0.1143 + 0.010
-        action = (self.gripper_range[0] - current_gripper_open_length) / 0.02
+        action = (self.gripper_range[0] - current_gripper_open_length) / self.gripper_scale
         self.move_gripper(action)
 
     def move_gripper(self, action):
         current_gripper_open_length = math.sin(0.715-self._pb.getJointState(self.embodiment_id, self.mimic_parent_id)[0])*0.1143 + 0.010
-        target_gripper_open_length = np.clip(current_gripper_open_length + action * 0.02, *self.gripper_range)
+        target_gripper_open_length = np.clip(current_gripper_open_length + action * self.gripper_scale, *self.gripper_range)
         open_angle = 0.715 - math.asin((target_gripper_open_length - 0.010) / 0.1143)  # angle calculation
         # Control the mimic gripper joint(s)
         self._pb.setJointMotorControl2(self.embodiment_id, self.mimic_parent_id, self._pb.POSITION_CONTROL, targetPosition=open_angle,

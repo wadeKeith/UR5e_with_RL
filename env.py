@@ -63,7 +63,7 @@ class UR5Env(gymnasium.Env):
             'velocities': velocities_obs_space,
             'finger_pos': ee_pos_obs_space
         })
-        n_action = 4 if self.control_type == "ee" else 7  # control (x, y z) if "ee", else, control the 7 joints
+        n_action = 4 if self.control_type == "end" else 7  # control (x, y z) if "ee", else, control the 7 joints
         self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
 
         self.time = None
@@ -113,17 +113,17 @@ class UR5Env(gymnasium.Env):
         terminated = False
         handle_finger_distance =  distance(np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.left_finger_pad_id)[0]),self.handle_pos)
         if handle_finger_distance>0.05:
-            reward = math.exp(-handle_finger_distance)
+            reward = math.exp(-handle_finger_distance*100)
             info = 'far from box'
         else:
             rot_box =  self._pb.getJointState(self.boxID, 1)[0]
             terminated = True
             if rot_box <= 1.9:
-                reward = math.exp(-handle_finger_distance) + rot_box/3.14159265359
+                reward = math.exp(-handle_finger_distance*100) + rot_box/3.14159265359
                 info = 'close to box'
             else:
                 self.box_opened = True
-                reward = math.exp(-handle_finger_distance) + rot_box/3.14159265359
+                reward = math.exp(-handle_finger_distance*100) + rot_box/3.14159265359
                 info = 'open box'
         return reward, terminated, info
     

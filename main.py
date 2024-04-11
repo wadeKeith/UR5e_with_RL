@@ -4,11 +4,13 @@ import math
 from stable_baselines3.common.env_checker import check_env
 import gymnasium as gym
 
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO,DDPG,SAC
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 import time
 import os
+
+from utilize import linear_schedule
 
 timestep = 1/240
 seed = 1234
@@ -31,7 +33,7 @@ robot_params = {
     "reset_gripper_range": reset_gripper_range,
 }
 use_gui = False
-control_type = 'joint'
+control_type = 'end'
 env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params, "control_type": control_type}
 
 
@@ -53,26 +55,27 @@ env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": ro
 # obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1,-1]))
 
 # vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
-vec_env = make_vec_env(UR5Env, n_envs=16, env_kwargs = env_kwargs_dict, seed=seed)
+vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 model = PPO("MultiInputPolicy",vec_env, 
-            learning_rate = 1e-8,
+            learning_rate = linear_schedule(1e-5),
             n_steps=4,
-            batch_size = 64,
+            batch_size = 4,
             n_epochs = 100,
             gamma = 0.99,
             normalize_advantage=True,
             ent_coef = 0.01,
             vf_coef = 0.5,
+            clip_range= linear_schedule(0.2),
             max_grad_norm = 0.5,
             stats_window_size = 10,
             tensorboard_log = './logs',
             seed = seed,
             verbose=1,
             device='cuda')
-model.learn(total_timesteps=25000, 
-            log_interval=1,
+model.learn(total_timesteps=50000, 
+            log_interval=100,
             tb_log_name="ur5_robotiq140_ppo",
             progress_bar=True)
 model.save("./model/ur5_robotiq140_ppo")
