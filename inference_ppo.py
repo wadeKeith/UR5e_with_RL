@@ -44,10 +44,9 @@ vec_env.norm_reward = False
 
 # Load the agent
 model = PPO.load("./model/ur5_robotiq140_ppo",env=vec_env)
-# model = PPO.load(log_dir + "ppo_halfcheetah", env=vec_env)
-# vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 obs = vec_env.reset()
-while True:
-    action, _states = model.predict(obs)
+dones=False
+while not dones:
+    action, _states = model.predict(obs,deterministic=True)
     obs, rewards, dones, info = vec_env.step(action)
     vec_env.render("human")

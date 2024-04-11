@@ -48,7 +48,8 @@ class UR5Env(gymnasium.Env):
         ee_pos_bound = np.array([8.5, 8.5, 8.5])
         ee_pos_obs_space = spaces.Box(-ee_pos_bound, ee_pos_bound, dtype=np.float32)
         self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
-        reach_space = spaces.Box(low=-self.handle_pos,high=self.handle_pos, dtype=np.float64)
+        # reach_space = spaces.Box(low=-self.handle_pos,high=self.handle_pos, dtype=np.float64)
+        reach_space = spaces.Box(-ee_pos_bound, ee_pos_bound, dtype=np.float32)
         # self.observation_space = spaces.Dict({
         #     'rgb': rgb_obs_space,
         #     'depth': depth_obs_space,

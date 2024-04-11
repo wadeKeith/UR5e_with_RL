@@ -9,7 +9,7 @@ class UR5Robotiq140:
         self.vis = use_gui
         self._pb = pb
         self.arm_num_dofs = 6
-        self.action_scale = 0.005
+        self.action_scale = 0.02
         self.gripper_scale = 0.02
         if "tcp_link_name" in robot_params:
             self.tcp_link_name = robot_params["tcp_link_name"]
