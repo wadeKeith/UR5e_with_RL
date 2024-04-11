@@ -59,7 +59,7 @@ vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed
 vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 model = SAC("MultiInputPolicy",vec_env, 
             learning_rate = linear_schedule(1e-5),
-            buffer_size = 1000000,
+            buffer_size = 100,
             learning_starts = 100,
             batch_size = 256,
             tau = 0.005,

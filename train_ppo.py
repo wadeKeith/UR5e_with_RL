@@ -55,13 +55,13 @@ env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": ro
 # obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1,-1]))
 
 # vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
-vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
+vec_env = make_vec_env(UR5Env, n_envs=2, env_kwargs = env_kwargs_dict, seed=seed)
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 model = PPO("MultiInputPolicy",vec_env, 
             learning_rate = linear_schedule(1e-5),
             n_steps=4,
-            batch_size = 4,
+            batch_size = 8,
             n_epochs = 100,
             gamma = 0.99,
             normalize_advantage=True,
