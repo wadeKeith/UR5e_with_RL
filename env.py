@@ -47,10 +47,18 @@ class UR5Env(gymnasium.Env):
         velocities_obs_space = spaces.Box(-velocity_bound, velocity_bound, dtype=np.float32)
         ee_pos_bound = np.array([8.5, 8.5, 8.5])
         ee_pos_obs_space = spaces.Box(-ee_pos_bound, ee_pos_bound, dtype=np.float32)
+        # self.observation_space = spaces.Dict({
+        #     'rgb': rgb_obs_space,
+        #     'depth': depth_obs_space,
+        #     'seg': seg_obs_space,
+        #     'positions': positions_obs_space,
+        #     'velocities': velocities_obs_space,
+        #     'finger_pos': ee_pos_obs_space
+        # })
         self.observation_space = spaces.Dict({
-            'rgb': rgb_obs_space,
-            'depth': depth_obs_space,
-            'seg': seg_obs_space,
+            'positions_old': positions_obs_space,
+            'velocities_old': velocities_obs_space,
+            'finger_pos_old': ee_pos_obs_space,
             'positions': positions_obs_space,
             'velocities': velocities_obs_space,
             'finger_pos': ee_pos_obs_space
@@ -59,7 +67,7 @@ class UR5Env(gymnasium.Env):
         self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
 
         self.time = None
-        self.step_limit = 300
+        self.step_limit = 30000
         self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.165])
 
     
@@ -75,7 +83,9 @@ class UR5Env(gymnasium.Env):
         info = dict(box_state='initial')
         # self._pb.addUserDebugPoints(pointPositions = [[0.48, -0.17256, 0.186809]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
         # self._pb.addUserDebugPoints(pointPositions = [[0.645, 1.4456028966473391e-18, 0.165]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
-        return (self.get_observation(), info)
+        obs = self.get_observation('old')
+        obs.update(self.get_observation('now'))
+        return (obs, info)
 
     def step(self, action):
         """
@@ -84,6 +94,7 @@ class UR5Env(gymnasium.Env):
         control_method:  'end' for end effector position control
                          'joint' for joint position control
         """
+        obs = self.get_observation('old')
         truncated = False
         assert self.control_type in ('joint', 'end')
         self.arm_gripper.move_ee(action[:-1], self.control_type)
@@ -92,10 +103,11 @@ class UR5Env(gymnasium.Env):
         reward, terminated, info_r = self.update_reward()
         # done = True if reward == 1 else False
         info = dict(box_state=info_r)
-        self.time =+ 1
-        if self.time > self.step_limit:
-            truncated = True
-        return self.get_observation(), reward, terminated, truncated, info
+        obs.update(self.get_observation('now'))
+        # self.time =+ 1
+        # if self.time > self.step_limit:
+        #     truncated = True
+        return obs, reward, terminated, truncated, info
 
     def update_reward(self):
         terminated = False
@@ -105,11 +117,11 @@ class UR5Env(gymnasium.Env):
             info = 'far from box'
         else:
             rot_box =  self._pb.getJointState(self.boxID, 1)[0]
+            terminated = True
             if rot_box <= 1.9:
                 reward = math.exp(-handle_finger_distance) + rot_box/3.14159265359
                 info = 'close to box'
             else:
-                terminated = True
                 self.box_opened = True
                 reward = math.exp(-handle_finger_distance) + rot_box/3.14159265359
                 info = 'open box'
@@ -141,16 +153,17 @@ class UR5Env(gymnasium.Env):
         self._pb.resetJointState(self.boxID, 1, 0,0 )
 
 
-    def get_observation(self):
+    def get_observation(self,flag):
         obs = dict()
-        if isinstance(self.camera, Camera):
-            rgb, depth, seg = self.camera.shot()
-            obs.update(dict(rgb=rgb, depth=depth, seg=seg))
-        else:
-            assert self.camera is None
-        obs.update(self.arm_gripper.get_joint_obs())
+        # if isinstance(self.camera, Camera):
+        #     rgb, depth, seg = self.camera.shot()
+        #     obs.update(dict(rgb=rgb, depth=depth, seg=seg))
+        # else:
+        #     assert self.camera is None
+        obs.update(self.arm_gripper.get_joint_obs(flag))
 
         return obs
+
     def close(self):
         if self._pb.isConnected():
             self._pb.disconnect()

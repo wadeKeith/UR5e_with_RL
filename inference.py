@@ -3,7 +3,9 @@ from env import UR5Env
 import math
 from stable_baselines3.common.env_checker import check_env
 import gymnasium as gym
+import os
 
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 
@@ -29,12 +31,20 @@ robot_params = {
 }
 control_type = 'joint'
 
-model = PPO.load("./model/ur5_robotiq140_ppo")
-
+stats_path = os.path.join('./normalize_file/', "vec_normalize.pkl")
 use_gui = True
 # env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
-vec_env = make_vec_env(lambda:vec_env, n_envs=1, seed=seed)
+vec_env = make_vec_env(lambda:vec_env, seed=seed)
+vec_env = VecNormalize.load(stats_path, vec_env)
+#  do not update them at test time
+vec_env.training = False
+# reward normalization is not needed at test time
+vec_env.norm_reward = False
+
+# Load the agent
+model = PPO.load("./model/ur5_robotiq140_ppo",env=vec_env)
+# model = PPO.load(log_dir + "ppo_halfcheetah", env=vec_env)
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 obs = vec_env.reset()
 while True:

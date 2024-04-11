@@ -181,7 +181,7 @@ class UR5Robotiq140:
     def step_simulation(self):
         raise RuntimeError('`step_simulation` method of RobotBase Class should be hooked by the environment.')
     
-    def get_joint_obs(self):
+    def get_joint_obs(self,flag):
         positions = []
         velocities = []
         for joint_id in self.control_joint_ids:
@@ -189,7 +189,11 @@ class UR5Robotiq140:
             positions.append(pos)
             velocities.append(vel)
         finger_pos = np.array(self._pb.getLinkState(self.embodiment_id, self.left_finger_pad_id)[0],dtype=np.float32)
-        return dict(positions=np.array(positions,dtype=np.float32), velocities=np.array(velocities, dtype=np.float32), finger_pos=finger_pos)
+        if flag  =='now':
+            robot_obs = dict(positions=np.array(positions,dtype=np.float32), velocities=np.array(velocities, dtype=np.float32), finger_pos=finger_pos)
+        elif flag == 'old':
+            robot_obs = dict(positions_old=np.array(positions,dtype=np.float32), velocities_old=np.array(velocities, dtype=np.float32), finger_pos_old=finger_pos)
+        return robot_obs
 
     def get_current_joint_pos_vel(self):
         """

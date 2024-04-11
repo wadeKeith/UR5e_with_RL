@@ -4,3 +4,4 @@ __pycache__*
 *.zip
 model/*
 logs/*
+model/ur5_robotiq140_ppo.zip
