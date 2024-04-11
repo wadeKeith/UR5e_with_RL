@@ -54,12 +54,11 @@ env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": ro
 # obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1,-1]))
 
 # vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
-vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
-# vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
-vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
+vec_env = make_vec_env(UR5Env, n_envs=16, env_kwargs = env_kwargs_dict, seed=seed)
+vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True, norm_obs_keys = ['positions_old','velocities_old','finger_pos_old','positions','velocities','finger_pos'])
 model = SAC("MultiInputPolicy",vec_env, 
-            learning_rate = linear_schedule(1e-5),
-            buffer_size = 100,
+            learning_rate = linear_schedule(1e-6),
+            buffer_size = 10000,
             learning_starts = 100,
             batch_size = 256,
             tau = 0.005,
@@ -69,8 +68,8 @@ model = SAC("MultiInputPolicy",vec_env,
             seed = seed,
             verbose=1,
             device='cuda')
-model.learn(total_timesteps=50000, 
-            log_interval=100,
+model.learn(total_timesteps=500000, 
+            log_interval=10,
             tb_log_name="ur5_robotiq140_sac",
             progress_bar=True)
 model.save("./model/ur5_robotiq140_sac")

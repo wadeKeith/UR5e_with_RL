@@ -47,6 +47,8 @@ class UR5Env(gymnasium.Env):
         velocities_obs_space = spaces.Box(-velocity_bound, velocity_bound, dtype=np.float32)
         ee_pos_bound = np.array([8.5, 8.5, 8.5])
         ee_pos_obs_space = spaces.Box(-ee_pos_bound, ee_pos_bound, dtype=np.float32)
+        self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
+        reach_space = spaces.Box(low=-self.handle_pos,high=self.handle_pos, dtype=np.float64)
         # self.observation_space = spaces.Dict({
         #     'rgb': rgb_obs_space,
         #     'depth': depth_obs_space,
@@ -61,14 +63,15 @@ class UR5Env(gymnasium.Env):
             'finger_pos_old': ee_pos_obs_space,
             'positions': positions_obs_space,
             'velocities': velocities_obs_space,
-            'finger_pos': ee_pos_obs_space
+            'finger_pos': ee_pos_obs_space,
+            'reach_pos': reach_space,
         })
         n_action = 4 if self.control_type == "end" else 7  # control (x, y z) if "ee", else, control the 7 joints
         self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
 
         self.time = None
         self.step_limit = 30000
-        self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
+        
 
     
 
@@ -85,6 +88,7 @@ class UR5Env(gymnasium.Env):
         # self._pb.addUserDebugPoints(pointPositions = [[0.645, 1.4456028966473391e-18, 0.165]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
         obs = self.get_observation('old')
         obs.update(self.get_observation('now'))
+        obs.update(dict(reach_pos=self.handle_pos))
         return (obs, info)
 
     def step(self, action):
@@ -104,9 +108,7 @@ class UR5Env(gymnasium.Env):
         # done = True if reward == 1 else False
         info = dict(box_state=info_r)
         obs.update(self.get_observation('now'))
-        # self.time =+ 1
-        # if self.time > self.step_limit:
-        #     truncated = True
+        obs.update(dict(reach_pos=self.handle_pos))
         return obs, reward, terminated, truncated, info
 
     def update_reward(self):
@@ -116,16 +118,17 @@ class UR5Env(gymnasium.Env):
             reward = -handle_finger_distance
             info = 'far from box'
         else:
-            rot_box =  self._pb.getJointState(self.boxID, 1)[0]
+            # rot_box =  self._pb.getJointState(self.boxID, 1)[0]
             terminated = True
-            if rot_box <= 1.9:
-                reward = -handle_finger_distance + rot_box/3.14159265359
-                info = 'close to box'
-            else:
-                self.box_opened = True
-                reward = -handle_finger_distance + rot_box/3.14159265359
-                info = 'open box'
-            reward+= 10000
+            # if rot_box <= 1.9:
+            #     reward = -handle_finger_distance + rot_box/3.14159265359
+            #     info = 'close to box'
+            # else:
+            #     self.box_opened = True
+            #     reward = -handle_finger_distance + rot_box/3.14159265359
+            #     info = 'open box'
+            reward = 10000
+            info = 'reach'
         return reward, terminated, info
     
     def step_simulation(self):

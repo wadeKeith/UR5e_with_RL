@@ -38,8 +38,8 @@ env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": ro
 
 
 
-# vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
-# check_env(vec_env)
+vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
+check_env(vec_env)
 # obs, info = env.reset(seed=seed)
 # vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
 # obs,_ = vec_env.reset()
@@ -55,13 +55,13 @@ env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": ro
 # obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1,-1]))
 
 # vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
-vec_env = make_vec_env(UR5Env, n_envs=2, env_kwargs = env_kwargs_dict, seed=seed)
+vec_env = make_vec_env(UR5Env, n_envs=16, env_kwargs = env_kwargs_dict, seed=seed)
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
-vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
+vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True, norm_obs_keys = ['positions_old','velocities_old','finger_pos_old','positions','velocities','finger_pos'])
 model = PPO("MultiInputPolicy",vec_env, 
-            learning_rate = linear_schedule(1e-5),
+            learning_rate = linear_schedule(1e-6),
             n_steps=4,
-            batch_size = 8,
+            batch_size = 64,
             n_epochs = 100,
             gamma = 0.99,
             normalize_advantage=True,
@@ -75,7 +75,7 @@ model = PPO("MultiInputPolicy",vec_env,
             verbose=1,
             device='cuda')
 model.learn(total_timesteps=50000, 
-            log_interval=100,
+            log_interval=10,
             tb_log_name="ur5_robotiq140_ppo",
             progress_bar=True)
 model.save("./model/ur5_robotiq140_ppo")
