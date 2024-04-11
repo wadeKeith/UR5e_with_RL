@@ -29,7 +29,7 @@ robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
-control_type = 'joint'
+control_type = 'end'
 
 stats_path = os.path.join('./normalize_file/', "vec_normalize.pkl")
 use_gui = True

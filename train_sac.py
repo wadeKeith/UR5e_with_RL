@@ -37,7 +37,6 @@ control_type = 'end'
 env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params, "control_type": control_type}
 
 
-
 # vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
 # check_env(vec_env)
 # obs, info = env.reset(seed=seed)
@@ -58,28 +57,24 @@ env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": ro
 vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
-model = PPO("MultiInputPolicy",vec_env, 
+model = SAC("MultiInputPolicy",vec_env, 
             learning_rate = linear_schedule(1e-5),
-            n_steps=4,
-            batch_size = 4,
-            n_epochs = 100,
+            buffer_size = 1000000,
+            learning_starts = 100,
+            batch_size = 256,
+            tau = 0.005,
             gamma = 0.99,
-            normalize_advantage=True,
-            ent_coef = 0.01,
-            vf_coef = 0.5,
-            clip_range= linear_schedule(0.2),
-            max_grad_norm = 0.5,
-            stats_window_size = 10,
+            train_freq = (5, "step"), #(2, "episode"), (5, "step")
             tensorboard_log = './logs',
             seed = seed,
             verbose=1,
             device='cuda')
 model.learn(total_timesteps=50000, 
             log_interval=100,
-            tb_log_name="ur5_robotiq140_ppo",
+            tb_log_name="ur5_robotiq140_sac",
             progress_bar=True)
-model.save("./model/ur5_robotiq140_ppo")
-stats_path = os.path.join('./normalize_file/', "vec_normalize.pkl")
+model.save("./model/ur5_robotiq140_sac")
+stats_path = os.path.join('./normalize_file/', "vec_normalize_sac.pkl")
 vec_env.save(stats_path)
 
 vec_env.close()
@@ -99,7 +94,7 @@ vec_env.training = False
 vec_env.norm_reward = False
 
 # Load the agent
-model = PPO.load("./model/ur5_robotiq140_ppo",env=vec_env)
+model = SAC.load("./model/ur5_robotiq140_sac",env=vec_env)
 # model = PPO.load(log_dir + "ppo_halfcheetah", env=vec_env)
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 obs = vec_env.reset()
@@ -108,7 +103,7 @@ while not dones:
     action, _states = model.predict(obs)
     obs, rewards, dones, info = vec_env.step(action)
     vec_env.render("human")
-
+vec_env.close()
 
 
 # while True:
