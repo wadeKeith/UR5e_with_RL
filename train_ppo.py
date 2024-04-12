@@ -12,7 +12,6 @@ import os
 
 from utilize import linear_schedule
 
-timestep = 1/240
 seed = 1234
 reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
                                math.pi/2, 0]
@@ -32,17 +31,18 @@ robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
-use_gui = False
-control_type = 'joint'
-env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params, "control_type": control_type}
+
+sim_params = {"use_gui":True,
+              'timestep':1/240,
+              'control_type':'joint',
+              'gripper_enable':False}
+env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
 
 
-# vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
+vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
 # check_env(vec_env)
-# obs, info = env.reset(seed=seed)
-# vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
-# obs,_ = vec_env.reset()
+obs,_ = vec_env.reset()
 # while True:
 #     # vec_env.step_simulation()
 #     time.sleep(timestep)
@@ -52,7 +52,7 @@ env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": ro
 #         exit()
 
 # obs_next, reward, done, truncated, info = vec_env.step([math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9, math.pi/2, math.pi/4, 0.085])
-# obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1,-1]))
+obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1]))
 
 # vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
 vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
@@ -89,7 +89,7 @@ del model ,vec_env# remove to demonstrate saving and loading
 
 use_gui = True
 # env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
-vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
+vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
 vec_env = make_vec_env(lambda:vec_env, seed=seed)
 vec_env = VecNormalize.load(stats_path, vec_env)
 #  do not update them at test time

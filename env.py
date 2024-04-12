@@ -9,12 +9,13 @@ import math
 
 
 class UR5Env(gymnasium.Env):
-    def __init__(self, show_gui,timestep, robot_params, visual_sensor_params,control_type='joint'):
+    def __init__(self, sim_params, robot_params, visual_sensor_params):
         super().__init__()
-        self.vis = show_gui
-        self._pb = connect_pybullet(timestep, show_gui=self.vis)
-        self.SIMULATION_STEP_DELAY = timestep
-        self.control_type = control_type
+        self.vis = sim_params['use_gui']
+        self._pb = connect_pybullet(sim_params['timestep'], show_gui=self.vis)
+        self.SIMULATION_STEP_DELAY = sim_params['timestep']
+        self.control_type = sim_params['control_type']
+        self.gripper_enable = sim_params['gripper_enable']
         self.load_standard_environment()
 
         # instantiate a robot arm
@@ -32,15 +33,12 @@ class UR5Env(gymnasium.Env):
                                 useFixedBase=True,
                                 flags=self._pb.URDF_MERGE_FIXED_LINKS | self._pb.URDF_USE_SELF_COLLISION)
         # For calculating the reward
-        self.box_opened = False
-        self.btn_pressed = False
-        self.box_closed = False
         self.camera = Camera(self._pb, visual_sensor_params)
         if self.vis:
             set_debug_camera(self._pb, visual_sensor_params)
-        rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
-        depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
-        seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
+        # rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
+        # depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
+        # seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
         positions_obs_space = spaces.Box(low=-3.14159265359, high=3.14159265359, shape=(self.arm_gripper.num_control_dofs,), dtype=np.float32)
         velocity_bound = np.array([3.16, 3.16, 3.16, 3.3, 3.3, 3.3, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1])
         assert velocity_bound.shape[0] == self.arm_gripper.num_control_dofs
@@ -67,11 +65,10 @@ class UR5Env(gymnasium.Env):
             'finger_pos': ee_pos_obs_space,
             'reach_pos': reach_space,
         })
-        n_action = 4 if self.control_type == "end" else 7  # control (x, y z) if "ee", else, control the 7 joints
+        n_action = 3 if self.control_type == "end" else 6  # control (x, y z) if "ee", else, control the 7 joints
+        n_action += 1 if self.gripper_enable else 0
         self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
 
-        self.time = None
-        self.step_limit = 30000
         
 
     
@@ -102,8 +99,11 @@ class UR5Env(gymnasium.Env):
         obs = self.get_observation('old')
         truncated = False
         assert self.control_type in ('joint', 'end')
-        self.arm_gripper.move_ee(action[:-1], self.control_type)
-        self.arm_gripper.move_gripper(action[-1])
+        if self.gripper_enable:
+            self.arm_gripper.move_ee(action[:-1], self.control_type)
+            self.arm_gripper.move_gripper(action[-1])
+        else:
+            self.arm_gripper.move_ee(action, self.control_type)
         self.step_simulation()
         reward, terminated, info_r = self.update_reward()
         # done = True if reward == 1 else False
