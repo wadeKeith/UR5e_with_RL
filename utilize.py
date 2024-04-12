@@ -84,7 +84,7 @@ def distance(a: np.ndarray, b: np.ndarray) -> np.ndarray:
         np.ndarray: The distance between the arrays.
     """
     assert a.shape == b.shape
-    return np.linalg.norm(a - b, ord=2)
+    return np.linalg.norm(a - b, ord=2,axis=-1)
 
 class Camera:
     def __init__(self, pb, debug_camera_params):

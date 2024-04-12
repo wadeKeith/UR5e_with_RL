@@ -67,7 +67,7 @@ class UR5Robotiq140:
             self._pb.resetJointState(self.embodiment_id, joint_id, rest_pose, 0)
             self._pb.changeDynamics(self.embodiment_id, joint_id, linearDamping=0.04, angularDamping=0.04)
             self._pb.changeDynamics(self.embodiment_id, joint_id, jointDamping=0.01)
-        open_angle = 0.715 - math.asin((self.gripper_range[0] - 0.010) / 0.1143)  # angle calculation
+        open_angle = 0.715 - math.asin((self.gripper_range[1] - 0.010) / 0.1143)  # angle calculation
         self._pb.resetJointState(self.embodiment_id, self.mimic_parent_id, open_angle, 0)
         
         
@@ -178,16 +178,13 @@ class UR5Robotiq140:
     def step_simulation(self):
         raise RuntimeError('`step_simulation` method of RobotBase Class should be hooked by the environment.')
     
-    def get_joint_obs(self,flag):
+    def get_joint_obs(self) -> np.ndarray:
         positions = []
         velocities = []
         for joint_id in self.control_joint_ids:
             pos, vel, _, _ = self._pb.getJointState(self.embodiment_id, joint_id)
             positions.append(pos)
             velocities.append(vel)
-        finger_pos = np.array(self._pb.getLinkState(self.embodiment_id, self.left_finger_pad_id)[0],dtype=np.float32)
-        if flag  =='now':
-            robot_obs = dict(positions=np.array(positions,dtype=np.float32), velocities=np.array(velocities, dtype=np.float32), finger_pos=finger_pos)
-        elif flag == 'old':
-            robot_obs = dict(positions_old=np.array(positions,dtype=np.float32), velocities_old=np.array(velocities, dtype=np.float32), finger_pos_old=finger_pos)
+        finger_pos = np.array(self._pb.getLinkState(self.embodiment_id, self.left_finger_pad_id)[0],dtype=np.float64)
+        robot_obs = np.concatenate([np.array(positions), np.array(velocities), finger_pos])
         return robot_obs

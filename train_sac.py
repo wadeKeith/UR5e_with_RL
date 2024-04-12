@@ -4,7 +4,7 @@ import math
 from stable_baselines3.common.env_checker import check_env
 import gymnasium as gym
 
-from stable_baselines3 import PPO,DDPG,SAC
+from stable_baselines3 import SAC, HerReplayBuffer
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 import time
@@ -12,7 +12,6 @@ import os
 
 from utilize import linear_schedule
 
-timestep = 1/240
 seed = 1234
 reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
                                math.pi/2, 0]
@@ -32,9 +31,12 @@ robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
-use_gui = False
-control_type = 'joint'
-env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params, "control_type": control_type}
+
+sim_params = {"use_gui":False,
+              'timestep':1/240,
+              'control_type':'joint',
+              'gripper_enable':False}
+env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
 
 # vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
@@ -58,12 +60,14 @@ vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True, norm_obs_keys = ['positions_old','velocities_old','finger_pos_old','positions','velocities','finger_pos'])
 model = SAC("MultiInputPolicy",vec_env, 
             learning_rate = linear_schedule(1e-6),
-            buffer_size = 10000,
+            replay_buffer_class=HerReplayBuffer,
+            replay_buffer_kwargs=dict(n_sampled_goal=4, goal_selection_strategy="future", optimize_memory_usage=True),
+            buffer_size = 1000000,
             learning_starts = 100,
             batch_size = 256,
             tau = 0.005,
             gamma = 0.99,
-            train_freq = (5, "step"), #(2, "episode"), (5, "step")
+            train_freq = (1, "step"), #(2, "episode"), (5, "step")
             tensorboard_log = './logs',
             seed = seed,
             verbose=1,
@@ -84,7 +88,7 @@ del model ,vec_env# remove to demonstrate saving and loading
 
 use_gui = True
 # env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
-vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
+vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
 vec_env = make_vec_env(lambda:vec_env, seed=seed)
 # vec_env = VecNormalize.load(stats_path, vec_env)
 #  do not update them at test time

@@ -32,7 +32,7 @@ robot_params = {
     "reset_gripper_range": reset_gripper_range,
 }
 
-sim_params = {"use_gui":True,
+sim_params = {"use_gui":False,
               'timestep':1/240,
               'control_type':'joint',
               'gripper_enable':False}
@@ -40,9 +40,9 @@ env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visua
 
 
 
-vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
+# vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
 # check_env(vec_env)
-obs,_ = vec_env.reset()
+# obs,_ = vec_env.reset()
 # while True:
 #     # vec_env.step_simulation()
 #     time.sleep(timestep)
@@ -52,7 +52,15 @@ obs,_ = vec_env.reset()
 #         exit()
 
 # obs_next, reward, done, truncated, info = vec_env.step([math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9, math.pi/2, math.pi/4, 0.085])
-obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1]))
+# obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1]))
+# while True:
+#     # vec_env.step_simulation()
+#     time.sleep(sim_params['timestep'])
+#     q_key = ord("q")
+#     keys = vec_env._pb.getKeyboardEvents()
+#     if q_key in keys and keys[q_key] & vec_env._pb.KEY_WAS_TRIGGERED:
+#         exit()
+
 
 # vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
 vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
