@@ -57,11 +57,11 @@ env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visua
 
 # vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
 vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
-# vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True, norm_obs_keys = ['positions_old','velocities_old','finger_pos_old','positions','velocities','finger_pos'])
+vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 model = SAC("MultiInputPolicy",vec_env, 
             learning_rate = linear_schedule(1e-6),
             replay_buffer_class=HerReplayBuffer,
-            replay_buffer_kwargs=dict(n_sampled_goal=4, goal_selection_strategy="future", optimize_memory_usage=True),
+            replay_buffer_kwargs=dict(n_sampled_goal=4, goal_selection_strategy="future"),
             buffer_size = 1000000,
             learning_starts = 100,
             batch_size = 256,
@@ -78,15 +78,14 @@ model.learn(total_timesteps=500000,
             progress_bar=True)
 model.save("./model/ur5_robotiq140_sac")
 stats_path = os.path.join('./normalize_file/', "vec_normalize_sac.pkl")
-# vec_env.save(stats_path)
+vec_env.save(stats_path)
 
 vec_env.close()
 del model ,vec_env# remove to demonstrate saving and loading
 
 
 
-
-use_gui = True
+sim_params['use_gui'] = True
 # env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
 vec_env = make_vec_env(lambda:vec_env, seed=seed)

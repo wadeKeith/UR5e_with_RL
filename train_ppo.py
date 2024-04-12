@@ -95,7 +95,7 @@ del model ,vec_env# remove to demonstrate saving and loading
 
 
 
-use_gui = True
+sim_params['use_gui'] = True
 # env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
 vec_env = make_vec_env(lambda:vec_env, seed=seed)
