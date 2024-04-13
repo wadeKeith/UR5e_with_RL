@@ -31,7 +31,9 @@ robot_params = {
 sim_params = {"use_gui":False,
               'timestep':1/240,
               'control_type':'joint',
-              'gripper_enable':False}
+              'gripper_enable':False,
+              'is_train':True}
+
 
 stats_path = os.path.join('./normalize_file/', "vec_normalize_sac.pkl")
 sim_params['use_gui'] = True
@@ -53,4 +55,4 @@ while not dones:
     obs, rewards, dones, info = vec_env.step(action)
     vec_env.render("human")
 vec_env.close()
-
+exit()
