@@ -1,16 +1,27 @@
 import numpy as np
 from env import UR5Env
+import random
+import numpy as np
+from tqdm import tqdm
+import torch
+import matplotlib.pyplot as plt
+from sac_her import SACContinuous, ReplayBuffer_Trajectory, Trajectory,PolicyNetContinuous
 import math
-from stable_baselines3.common.env_checker import check_env
-import gymnasium as gym
-from sb3_contrib import TQC
-from stable_baselines3 import SAC, HerReplayBuffer
-from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-import time
-import os
 
-from utilize import linear_schedule
+def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
+    model = PolicyNetContinuous(state_dim, hidden_dim, action_dim).to(device)
+    model.load_state_dict(torch.load("./model/sac_her_ur5_%d.pkl" % model_num))
+    model.eval()
+    episode_return = 0
+    state,_ = env.reset()
+    done = False
+    while not done:
+        state = torch.tensor(state, dtype=torch.float).to(device)
+        action = model(state)[0].detach().cpu().numpy()
+        state, reward, terminated, truncated, info = env.step(action)
+        done = terminated or truncated
+        episode_return += reward
+    print("Test rawrd of the model %d is %.3f and info: is_success: %b" % (model_num, episode_return, info['is_success']))
 
 seed = 1234
 reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
@@ -36,88 +47,96 @@ sim_params = {"use_gui":False,
               'timestep':1/240,
               'control_type':'joint',
               'gripper_enable':False,
-              'is_train':True}
-env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
-
-
-# vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
-# check_env(vec_env)
-# obs, info = env.reset(seed=seed)
-# vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
-# obs,_ = vec_env.reset()
-# while True:
-#     # vec_env.step_simulation()
-#     time.sleep(timestep)
-#     q_key = ord("q")
-#     keys = vec_env._pb.getKeyboardEvents()
-#     if q_key in keys and keys[q_key] & vec_env._pb.KEY_WAS_TRIGGERED:
-#         exit()
-
-# obs_next, reward, done, truncated, info = vec_env.step([math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9, math.pi/2, math.pi/4, 0.085])
-# obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1,-1]))
-
-# vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
-vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
-# vec_env.close()
-vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
-# exit()
-model = SAC("MultiInputPolicy",vec_env, 
-            learning_rate = linear_schedule(1e-4),
-            replay_buffer_class= HerReplayBuffer,
-            replay_buffer_kwargs=dict(n_sampled_goal=4, goal_selection_strategy="future",copy_info_dict=True),
-            buffer_size = 1000000,
-            learning_starts = 10,
-            batch_size = 256,
-            tau = 0.005,
-            gamma = 0.99,
-            train_freq = (1, "episode"), #(2, "episode"), (5, "step")
-            tensorboard_log = './logs',
-            seed = seed,
-            # optimize_memory_usage = True,
-            gradient_steps=1,
-            verbose=1,
-            device='cuda')
-model.learn(total_timesteps=500000, 
-            log_interval=10,
-            tb_log_name="ur5_robotiq140_sac",
-            progress_bar=False)
-model.save("./model/ur5_robotiq140_sac")
-stats_path = os.path.join('./normalize_file/', "vec_normalize_sac.pkl")
-vec_env.save(stats_path)
-
-vec_env.close()
-del model ,vec_env# remove to demonstrate saving and loading
-
-
-
-sim_params['use_gui'] = True
-sim_params['is_train'] = False
+              'is_train':True,
+              'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
-vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
-vec_env = VecNormalize.load(stats_path, vec_env)
-#  do not update them at test time
-vec_env.training = False
-# reward normalization is not needed at test time
-vec_env.norm_reward = False
+env = UR5Env(sim_params, robot_params,visual_sensor_params)
 
-# Load the agent
-model = SAC.load("./model/ur5_robotiq140_sac",env=vec_env)
-obs = vec_env.reset()
-dones=False
-while not dones:
-    action, _states = model.predict(obs,deterministic=True)
-    obs, rewards, dones, info = vec_env.step(action)
-    vec_env.render("human")
-vec_env.close()
-exit()
+state_dim = env.observation_space['observation'].shape[0]+env.observation_space['desired_goal'].shape[0]+env.observation_space['achieved_goal'].shape[0]
+action_dim = env.action_space.shape[0]
 
-# while True:
-#     # vec_env.step_simulation()
-#     time.sleep(timestep)
-#     q_key = ord("q")
-#     keys = vec_env._pb.getKeyboardEvents()
-#     if q_key in keys and keys[q_key] & vec_env._pb.KEY_WAS_TRIGGERED:
-#         exit()
+actor_lr = 3e-4
+critic_lr = 3e-3
+alpha_lr = 3e-4
+num_episodes = 100
+hidden_dim = 128
+gamma = 0.99
+tau = 0.005  # 软更新参数
+buffer_size = 100000
+minimal_episodes = 2
+n_train = 20
+batch_size = 256
+state_len = env.observation_space['observation'].shape[0]
+achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
+target_entropy = -env.action_space.shape[0]
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
+    "mps")
 
-# # 断开连接
-# env.close()
+
+random.seed(0)
+np.random.seed(0)
+torch.manual_seed(0)
+
+her_buffer = ReplayBuffer_Trajectory(capacity= buffer_size, 
+                                     dis_threshold=sim_params['distance_threshold'], 
+                                     use_her=True,
+                                     batch_size=batch_size,
+                                     state_len=state_len,
+                                     achieved_goal_len=achieved_goal_len,)
+agent = SACContinuous(state_dim, hidden_dim, action_dim, actor_lr, 
+                 critic_lr, alpha_lr, target_entropy, tau, gamma,
+                 device)
+
+return_list = []
+for i in range(100):
+    agent.lr_decay(i)
+    with tqdm(total=int(num_episodes), desc='Iteration %d' % i) as pbar:
+        for i_episode in range(num_episodes):
+            episode_return = 0
+            state,_ = env.reset()
+            traj = Trajectory(state)
+            done = False
+            while not done:
+                action = agent.take_action(state)
+                state, reward, terminated, truncated, info = env.step(action)
+                done = terminated or truncated
+                episode_return += reward
+                traj.store_step(action, state, reward, done)
+            her_buffer.add_trajectory(traj)
+            return_list.append(episode_return)
+            if her_buffer.size() >= minimal_episodes:
+                her_buffer_maxlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
+                her_ratio = min(her_buffer_maxlen_ls)/env.time_limitation
+                for _ in range(n_train):
+                    transition_dict = her_buffer.sample(her_ratio)
+                    agent.update(transition_dict)
+            pbar.set_postfix({
+                'episode':
+                '%d' % (i*num_episodes + i_episode + 1),
+                'return':
+                '%.3f' % np.mean(return_list[-1]),
+                "lr": agent.actor_optimizer.param_groups[0][
+                            "lr"],
+                "info:is success": info['is_success']
+            })
+            pbar.update(1)
+    torch.save(agent.actor.state_dict(), "./model/sac_her_ur5_%d.pkl" % i)
+    sim_params['is_train'] = False
+    test_env  = UR5Env(sim_params, robot_params,visual_sensor_params)
+    evluation_policy(env=test_env, state_dim=agent.state_dim,
+                     action_dim = agent.action_dim,
+                     hidden_dim=agent.hidden_dim, 
+                     device=agent.device,
+                     model_num=i)
+    test_env.close()
+    del test_env
+    sim_params['is_train'] = True
+
+env.close()
+del env
+episodes_list = list(range(len(return_list)))
+plt.plot(episodes_list, return_list)
+plt.xlabel('Episodes')
+plt.ylabel('Returns')
+plt.title('SAC with HER on {}'.format('UR5'))
+plt.show()

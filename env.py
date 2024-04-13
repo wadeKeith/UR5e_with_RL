@@ -17,6 +17,7 @@ class UR5Env(gymnasium.Env):
         self.control_type = sim_params['control_type']
         self.gripper_enable = sim_params['gripper_enable']
         self.is_train = sim_params['is_train']
+        self.distance_threshold = sim_params['distance_threshold']
         self.load_standard_environment()
 
         # initialize a robot arm and gripper
@@ -42,7 +43,6 @@ class UR5Env(gymnasium.Env):
         self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
         self.goal_range_low = np.array([-3, -3, -3])
         self.goal_range_high = np.array([3, 3, 3])
-        self.distance_threshold = 0.05
         # rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
         # depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
         # seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
@@ -73,7 +73,7 @@ class UR5Env(gymnasium.Env):
         n_action += 1 if self.gripper_enable else 0
         self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
         self.time = None
-        self.time_limitation = 100000
+        self.time_limitation = 1000
 
         
 
@@ -98,8 +98,9 @@ class UR5Env(gymnasium.Env):
         robot_obs_old = self.arm_gripper.get_joint_obs().astype(np.float32).copy() 
         robot_obs_new = self.arm_gripper.get_joint_obs().astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
-        obs = self._get_obs(robot_obs)
-        info = {"is_success": self.is_success(obs["achieved_goal"], obs['desired_goal'])}
+        obs_dict = self._get_obs(robot_obs)
+        obs = self.dictobs2npobs(obs_dict, self.observation_space)
+        info = {"is_success": bool(self.is_success(obs_dict["achieved_goal"], obs_dict['desired_goal']))}
         return (obs, info)
 
     def step(self, action) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
@@ -120,11 +121,12 @@ class UR5Env(gymnasium.Env):
         self.step_simulation()
         robot_obs_new = self.arm_gripper.get_joint_obs().astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
-        obs = self._get_obs(robot_obs)
-        info = {"is_success": bool(self.is_success(obs['achieved_goal'], obs['desired_goal']))}
-        terminated = self.compute_terminated(obs['achieved_goal'], obs['desired_goal'], info)
-        truncated = self.compute_truncated(obs['achieved_goal'], obs['desired_goal'], info)
-        reward  = float(self.compute_reward(obs['achieved_goal'], obs['desired_goal'], info))
+        obs_dict = self._get_obs(robot_obs)
+        obs = self.dictobs2npobs(obs_dict, self.observation_space)
+        info = {"is_success": bool(self.is_success(obs_dict['achieved_goal'], obs_dict['desired_goal']))}
+        terminated = self.compute_terminated(obs_dict['achieved_goal'], obs_dict['desired_goal'], info)
+        truncated = self.compute_truncated(obs_dict['achieved_goal'], obs_dict['desired_goal'], info)
+        reward  = float(self.compute_reward(obs_dict['achieved_goal'], obs_dict['desired_goal'], info))
         
         return obs, reward, terminated, truncated, info
 
@@ -184,6 +186,13 @@ class UR5Env(gymnasium.Env):
             'achieved_goal': achieved_goal,
             'desired_goal': desired_goal,
         }
+    def dictobs2npobs(self,observation, dic_observation_space):
+        list_obs = []
+        for key in observation.keys():
+            list_obs += ((observation[key]-dic_observation_space[key].low)/(dic_observation_space[key].high-dic_observation_space[key].low)).tolist()
+        return np.array(list_obs)
+
+
     def get_achieved_goal(self) -> np.ndarray:
         object_position = np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.left_finger_pad_id)[0],dtype=np.float64)
         return object_position
