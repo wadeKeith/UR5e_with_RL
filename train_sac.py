@@ -7,6 +7,7 @@ import torch
 import matplotlib.pyplot as plt
 from sac_her import SACContinuous, ReplayBuffer_Trajectory, Trajectory,Agent_test
 import math
+import pickle
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     model = Agent_test(state_dim, hidden_dim, action_dim).to(device)
@@ -58,13 +59,13 @@ actor_lr = 3e-4
 critic_lr = 3e-3
 alpha_lr = 3e-4
 num_episodes = 1000
-hidden_dim = 128
-gamma = 0.99
+hidden_dim = 256
+gamma = 0.99999
 tau = 0.005  # 软更新参数
 buffer_size = 100000
 minimal_episodes = 10
 n_train = 20
-batch_size = 256
+batch_size = 512
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
 target_entropy = -env.action_space.shape[0]
@@ -103,23 +104,36 @@ for i in range(100):
                 traj.store_step(action, state, reward, done)
             her_buffer.add_trajectory(traj)
             return_list.append(episode_return)
+            # her_ratio = 1
             if her_buffer.size() >= minimal_episodes:
                 her_buffer_maxlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
-                her_ratio = min(her_buffer_maxlen_ls)/env.time_limitation
+                her_ratio = (min(her_buffer_maxlen_ls)-10)/env.time_limitation
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict)
-            pbar.set_postfix({
-                # 'goal':
-                # '%r' % (env.goal),
-                'episode':
-                    '%d' % (num_episodes* i + i_episode + 1),
-                'return':
-                '%.3f' % np.mean(return_list[-1]),
-                "lr": agent.actor_optimizer.param_groups[0][
-                            "lr"],
-                "info:is success": info['is_success']
-            })
+                pbar.set_postfix({
+                    'episode':
+                        '%d' % (num_episodes* i + i_episode + 1),
+                    "her dones":np.count_nonzero(transition_dict['dones']),
+                    'return':
+                    '%.3f' % np.mean(return_list[-1]),
+                    "lr": agent.actor_optimizer.param_groups[0][
+                                "lr"],
+                    "info:is success": info['is_success'],
+                    "HER ratio":her_ratio
+                })
+            else:
+                pbar.set_postfix({
+                    # 'goal':
+                    # '%r' % (env.goal),
+                    'episode':
+                        '%d' % (num_episodes* i + i_episode + 1),
+                    'return':
+                    '%.3f' % np.mean(return_list[-1]),
+                    "lr": agent.actor_optimizer.param_groups[0][
+                                "lr"],
+                    "info:is success": info['is_success'],
+                })
             pbar.update(1)
     torch.save(agent.actor.state_dict(), "./model/sac_her_ur5_%d.pkl" % i)
     sim_params['is_train'] = False
@@ -135,6 +149,8 @@ for i in range(100):
 
 env.close()
 del env
+with open('her_buffer.pkl', 'wb') as file:
+    pickle.dump(her_buffer, file)
 episodes_list = list(range(len(return_list)))
 plt.plot(episodes_list, return_list)
 plt.xlabel('Episodes')
