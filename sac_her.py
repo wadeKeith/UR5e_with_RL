@@ -99,7 +99,7 @@ class PolicyNetContinuous(torch.nn.Module):
         return action, log_prob
 class Agent_test(torch.nn.Module):
     def __init__(self, state_dim, hidden_dim, action_dim):
-        super(PolicyNetContinuous, self).__init__()
+        super(Agent_test, self).__init__()
         self.fc1 = torch.nn.Linear(state_dim, hidden_dim)
         self.fc_mu = torch.nn.Linear(hidden_dim, action_dim)
         self.fc_std = torch.nn.Linear(hidden_dim, action_dim)
