@@ -35,7 +35,8 @@ robot_params = {
 sim_params = {"use_gui":False,
               'timestep':1/240,
               'control_type':'joint',
-              'gripper_enable':False}
+              'gripper_enable':False,
+              'is_train':True}
 env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
 
@@ -63,13 +64,13 @@ env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visua
 
 
 # vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
-vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
+vec_env = make_vec_env(UR5Env, n_envs=4, env_kwargs = env_kwargs_dict, seed=seed)
 vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 # vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True, norm_obs_keys = ['positions_old','velocities_old','finger_pos_old','positions','velocities','finger_pos'])
 model = PPO("MultiInputPolicy",vec_env, 
             learning_rate = linear_schedule(6e-6),
             n_steps= 16,
-            batch_size = 16,
+            batch_size = 64,
             gamma = 0.9999,
             normalize_advantage=True,
             ent_coef = 0.01,
@@ -96,6 +97,7 @@ del model ,vec_env# remove to demonstrate saving and loading
 
 
 sim_params['use_gui'] = True
+sim_params['is_train'] = False
 # env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
 vec_env = make_vec_env(lambda:vec_env, seed=seed)

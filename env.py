@@ -16,6 +16,7 @@ class UR5Env(gymnasium.Env):
         self.SIMULATION_STEP_DELAY = sim_params['timestep']
         self.control_type = sim_params['control_type']
         self.gripper_enable = sim_params['gripper_enable']
+        self.is_train = sim_params['is_train']
         self.load_standard_environment()
 
         # initialize a robot arm and gripper
@@ -26,12 +27,13 @@ class UR5Env(gymnasium.Env):
         )
         self.arm_gripper.step_simulation = self.step_simulation
         # initialize the box
-        # self.boxID = self._pb.loadURDF("./assets/urdfs/skew-box-button.urdf",
-        #                         [0.7, 0.0, 0.0],
-        #                         # p.getQuaternionFromEuler([0, 1.5706453, 0]),
-        #                         self._pb.getQuaternionFromEuler([0, 0, 0]),
-        #                         useFixedBase=True,
-        #                         flags=self._pb.URDF_MERGE_FIXED_LINKS | self._pb.URDF_USE_SELF_COLLISION)
+        if self.is_train == False:
+            self.boxID = self._pb.loadURDF("./assets/urdfs/skew-box-button.urdf",
+                                    [0.7, 0.0, 0.0],
+                                    # p.getQuaternionFromEuler([0, 1.5706453, 0]),
+                                    self._pb.getQuaternionFromEuler([0, 0, 0]),
+                                    useFixedBase=True,
+                                    flags=self._pb.URDF_MERGE_FIXED_LINKS | self._pb.URDF_USE_SELF_COLLISION)
         # # Initialize the camera
         # self.camera = Camera(self._pb, visual_sensor_params)
         if self.vis:
@@ -70,6 +72,8 @@ class UR5Env(gymnasium.Env):
         n_action = 3 if self.control_type == "end" else 6  # control (x, y z) if "ee", else, control the 7 joints
         n_action += 1 if self.gripper_enable else 0
         self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
+        self.time = None
+        self.time_limitation = 100000
 
         
 
@@ -80,16 +84,21 @@ class UR5Env(gymnasium.Env):
         Reset the pose of the arm and sensor
         """
         # np.random.seed(seed)
+        self.time = 0
         self.arm_gripper.reset()
         # self.reset_box()
-        self.goal = self._sample_goal()
+        if self.is_train:
+            self.goal = self._sample_goal()
 
         # self._pb.addUserDebugPoints(pointPositions = [[0.48, -0.17256, 0.186809]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
-        self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= 0)
+            self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= 0)
+        else:
+            self.goal = self.handle_pos
+            self.reset_box()
         robot_obs_old = self.arm_gripper.get_joint_obs().astype(np.float32).copy() 
         robot_obs_new = self.arm_gripper.get_joint_obs().astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
-        obs = self.get_obs(robot_obs)
+        obs = self._get_obs(robot_obs)
         info = {"is_success": self.is_success(obs["achieved_goal"], obs['desired_goal'])}
         return (obs, info)
 
@@ -100,6 +109,7 @@ class UR5Env(gymnasium.Env):
         control_method:  'end' for end effector position control
                          'joint' for joint position control
         """
+        self.time +=1
         robot_obs_old = self.arm_gripper.get_joint_obs().astype(np.float32).copy() 
         assert self.control_type in ('joint', 'end')
         if self.gripper_enable:
@@ -110,10 +120,10 @@ class UR5Env(gymnasium.Env):
         self.step_simulation()
         robot_obs_new = self.arm_gripper.get_joint_obs().astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
-        obs = self.get_obs(robot_obs)
-        terminated = bool(self.is_success(obs['achieved_goal'], obs['desired_goal']))
-        truncated = False
-        info = {"is_success": terminated}
+        obs = self._get_obs(robot_obs)
+        info = {"is_success": bool(self.is_success(obs['achieved_goal'], obs['desired_goal']))}
+        terminated = self.compute_terminated(obs['achieved_goal'], obs['desired_goal'], info)
+        truncated = self.compute_truncated(obs['achieved_goal'], obs['desired_goal'], info)
         reward  = float(self.compute_reward(obs['achieved_goal'], obs['desired_goal'], info))
         
         return obs, reward, terminated, truncated, info
@@ -122,6 +132,19 @@ class UR5Env(gymnasium.Env):
         d = distance(achieved_goal, desired_goal)
         return -np.array(d > self.distance_threshold, dtype=np.float32)
     
+    def compute_terminated(self, achieved_goal, desired_goal, info) -> bool:
+        d = distance(achieved_goal, desired_goal)
+        return d < self.distance_threshold
+    
+    def compute_truncated(self, achieved_goal, desired_goal, info) -> bool:
+        d = distance(achieved_goal, desired_goal)
+        if d < self.distance_threshold:
+            return True
+        else:
+            if self.time >=self.time_limitation:
+                return True
+            else:
+                return False
 
     def is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> np.ndarray:
         d = distance(achieved_goal, desired_goal)
@@ -149,11 +172,11 @@ class UR5Env(gymnasium.Env):
             [0.50, 0.00, -0.625],
             [0.0, 0.0, 0.0, 1.0],
     )
-    # def reset_box(self):
-    #     self._pb.resetJointState(self.boxID, 0, -1.1275702593849252e-18,0)
-    #     self._pb.resetJointState(self.boxID, 1, 0,0 )
+    def reset_box(self):
+        self._pb.resetJointState(self.boxID, 0, -1.1275702593849252e-18,0)
+        self._pb.resetJointState(self.boxID, 1, 0,0 )
 
-    def get_obs(self, robot_obs):
+    def _get_obs(self, robot_obs):
         achieved_goal = self.get_achieved_goal().astype(np.float32)
         desired_goal = self.goal.copy().astype(np.float32)
         return {

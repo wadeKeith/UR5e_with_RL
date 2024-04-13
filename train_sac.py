@@ -3,7 +3,7 @@ from env import UR5Env
 import math
 from stable_baselines3.common.env_checker import check_env
 import gymnasium as gym
-
+from sb3_contrib import TQC
 from stable_baselines3 import SAC, HerReplayBuffer
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
@@ -35,11 +35,12 @@ robot_params = {
 sim_params = {"use_gui":False,
               'timestep':1/240,
               'control_type':'joint',
-              'gripper_enable':False}
+              'gripper_enable':False,
+              'is_train':True}
 env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
 
-# vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
+# vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
 # check_env(vec_env)
 # obs, info = env.reset(seed=seed)
 # vec_env = UR5Env(use_gui, timestep, robot_params,visual_sensor_params,control_type)
@@ -56,20 +57,23 @@ env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visua
 # obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1,-1]))
 
 # vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
-vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
+vec_env = make_vec_env(UR5Env, n_envs=16, env_kwargs = env_kwargs_dict, seed=seed)
 vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
+# exit()
 model = SAC("MultiInputPolicy",vec_env, 
             learning_rate = linear_schedule(1e-6),
-            replay_buffer_class=HerReplayBuffer,
-            replay_buffer_kwargs=dict(n_sampled_goal=4, goal_selection_strategy="future"),
+            replay_buffer_class= HerReplayBuffer,
+            replay_buffer_kwargs=dict(n_sampled_goal=4, goal_selection_strategy="future",copy_info_dict=True),
             buffer_size = 1000000,
-            learning_starts = 100,
+            learning_starts = 0,
             batch_size = 256,
             tau = 0.005,
             gamma = 0.99,
-            train_freq = (1, "step"), #(2, "episode"), (5, "step")
+            train_freq = (4, "episode"), #(2, "episode"), (5, "step")
             tensorboard_log = './logs',
             seed = seed,
+            # optimize_memory_usage = True,
+            gradient_steps=1,
             verbose=1,
             device='cuda')
 model.learn(total_timesteps=500000, 
@@ -86,19 +90,17 @@ del model ,vec_env# remove to demonstrate saving and loading
 
 
 sim_params['use_gui'] = True
-# env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
-vec_env = UR5Env(sim_params, robot_params,visual_sensor_params)
-vec_env = make_vec_env(lambda:vec_env, seed=seed)
-# vec_env = VecNormalize.load(stats_path, vec_env)
+sim_params['is_train'] = False
+# env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
+vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
+vec_env = VecNormalize.load(stats_path, vec_env)
 #  do not update them at test time
-# vec_env.training = False
+vec_env.training = False
 # reward normalization is not needed at test time
-# vec_env.norm_reward = False
+vec_env.norm_reward = False
 
 # Load the agent
 model = SAC.load("./model/ur5_robotiq140_sac",env=vec_env)
-# model = PPO.load(log_dir + "ppo_halfcheetah", env=vec_env)
-# vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 obs = vec_env.reset()
 dones=False
 while not dones:
@@ -106,7 +108,7 @@ while not dones:
     obs, rewards, dones, info = vec_env.step(action)
     vec_env.render("human")
 vec_env.close()
-
+exit()
 
 # while True:
 #     # vec_env.step_simulation()
