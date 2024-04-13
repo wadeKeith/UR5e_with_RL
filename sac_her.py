@@ -97,7 +97,18 @@ class PolicyNetContinuous(torch.nn.Module):
         # 计算tanh_normal分布的对数概率密度
         log_prob = log_prob - torch.log(1 - torch.tanh(action).pow(2) + 1e-7)
         return action, log_prob
+class Agent_test(torch.nn.Module):
+    def __init__(self, state_dim, hidden_dim, action_dim):
+        super(PolicyNetContinuous, self).__init__()
+        self.fc1 = torch.nn.Linear(state_dim, hidden_dim)
+        self.fc_mu = torch.nn.Linear(hidden_dim, action_dim)
+        self.fc_std = torch.nn.Linear(hidden_dim, action_dim)
 
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        mu = self.fc_mu(x)
+        action = torch.tanh(mu)
+        return action
 
 class QValueNetContinuous(torch.nn.Module):
     def __init__(self, state_dim, hidden_dim, action_dim):

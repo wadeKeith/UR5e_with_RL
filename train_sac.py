@@ -5,11 +5,11 @@ import numpy as np
 from tqdm import tqdm
 import torch
 import matplotlib.pyplot as plt
-from sac_her import SACContinuous, ReplayBuffer_Trajectory, Trajectory,PolicyNetContinuous
+from sac_her import SACContinuous, ReplayBuffer_Trajectory, Trajectory,Agent_test
 import math
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
-    model = PolicyNetContinuous(state_dim, hidden_dim, action_dim).to(device)
+    model = Agent_test(state_dim, hidden_dim, action_dim).to(device)
     model.load_state_dict(torch.load("./model/sac_her_ur5_%d.pkl" % model_num))
     model.eval()
     episode_return = 0
@@ -17,13 +17,12 @@ def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     done = False
     while not done:
         state = torch.tensor(state, dtype=torch.float).to(device)
-        action = model(state)[0].detach().cpu().numpy()
+        action = model(state).detach().cpu().numpy()
         state, reward, terminated, truncated, info = env.step(action)
         done = terminated or truncated
         episode_return += reward
-    print("Test rawrd of the model %d is %.3f and info: is_success: %b" % (model_num, episode_return, info['is_success']))
+    print("Test rawrd of the model %d is %.3f and info: is_success: %r, goal is %r" % (model_num, episode_return, info['is_success'],env.goal))
 
-seed = 1234
 reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
                                math.pi/2, 0]
 reset_gripper_range = [0, 0.085]
@@ -111,8 +110,10 @@ for i in range(100):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict)
             pbar.set_postfix({
+                # 'goal':
+                # '%r' % (env.goal),
                 'episode':
-                '%d' % (i*num_episodes + i_episode + 1),
+                    '%d' % (num_episodes* i + i_episode + 1),
                 'return':
                 '%.3f' % np.mean(return_list[-1]),
                 "lr": agent.actor_optimizer.param_groups[0][

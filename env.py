@@ -8,9 +8,9 @@ import numpy as np
 import math
 
 
-class UR5Env(gymnasium.Env):
+class UR5Env(object):
     def __init__(self, sim_params, robot_params, visual_sensor_params):
-        super().__init__()
+        # super().__init__()
         self.vis = sim_params['use_gui']
         self._pb = connect_pybullet(sim_params['timestep'], show_gui=self.vis)
         self.SIMULATION_STEP_DELAY = sim_params['timestep']
@@ -74,6 +74,7 @@ class UR5Env(gymnasium.Env):
         self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
         self.time = None
         self.time_limitation = 1000
+        self.goal = None
 
         
 
@@ -83,7 +84,7 @@ class UR5Env(gymnasium.Env):
         """
         Reset the pose of the arm and sensor
         """
-        # np.random.seed(seed)
+        self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
         self.time = 0
         self.arm_gripper.reset()
         # self.reset_box()
@@ -91,7 +92,8 @@ class UR5Env(gymnasium.Env):
             self.goal = self._sample_goal()
 
         # self._pb.addUserDebugPoints(pointPositions = [[0.48, -0.17256, 0.186809]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
-            self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= 0)
+            if self.vis == True:
+                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= 0)
         else:
             self.goal = self.handle_pos
             self.reset_box()
@@ -199,8 +201,8 @@ class UR5Env(gymnasium.Env):
     def _sample_goal(self) -> np.ndarray:
         """Sample a goal."""
         goal = self.handle_pos  # z offset for the cube center
-        noise = self.np_random.uniform(self.goal_range_low, self.goal_range_high)
-        if self.np_random.random() < 0.3:
+        noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
+        if np.random.random() < 0.3:
             noise[2] = 0.0
         goal += noise
         return goal
