@@ -57,19 +57,20 @@ env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visua
 # obs_next1, reward1, done, truncated, info = vec_env.step(np.array([1,1,1,1,1,1,-1]))
 
 # vec_env = make_vec_env(lambda:vec_env, n_envs=16, seed=seed)
-vec_env = make_vec_env(UR5Env, n_envs=16, env_kwargs = env_kwargs_dict, seed=seed)
+vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
+# vec_env.close()
 vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 # exit()
 model = SAC("MultiInputPolicy",vec_env, 
-            learning_rate = linear_schedule(1e-6),
+            learning_rate = linear_schedule(1e-4),
             replay_buffer_class= HerReplayBuffer,
             replay_buffer_kwargs=dict(n_sampled_goal=4, goal_selection_strategy="future",copy_info_dict=True),
             buffer_size = 1000000,
-            learning_starts = 0,
+            learning_starts = 10,
             batch_size = 256,
             tau = 0.005,
             gamma = 0.99,
-            train_freq = (4, "episode"), #(2, "episode"), (5, "step")
+            train_freq = (1, "episode"), #(2, "episode"), (5, "step")
             tensorboard_log = './logs',
             seed = seed,
             # optimize_memory_usage = True,
@@ -79,7 +80,7 @@ model = SAC("MultiInputPolicy",vec_env,
 model.learn(total_timesteps=500000, 
             log_interval=10,
             tb_log_name="ur5_robotiq140_sac",
-            progress_bar=True)
+            progress_bar=False)
 model.save("./model/ur5_robotiq140_sac")
 stats_path = os.path.join('./normalize_file/', "vec_normalize_sac.pkl")
 vec_env.save(stats_path)
