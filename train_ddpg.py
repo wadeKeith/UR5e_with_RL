@@ -42,10 +42,10 @@ robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
-
+# control type: joint, end
 sim_params = {"use_gui":False,
               'timestep':1/240,
-              'control_type':'joint',
+              'control_type':'end',
               'gripper_enable':False,
               'is_train':True,
               'distance_threshold':0.05,}

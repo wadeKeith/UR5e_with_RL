@@ -95,7 +95,7 @@ class UR5Robotiq140:
         '''
         assert control_method in ('joint', 'end')
         if control_method == 'end':
-            ee_displacement = action[:3] * self.action_scale  # limit maximum change in position
+            ee_displacement = action * self.action_scale  # limit maximum change in position
             ee_position =np.array(self._pb.getLinkState(self.embodiment_id, self.tcp_link_id)[0])
             target_ee_position = ee_position + ee_displacement
             # Clip the height target. For some reason, it has a great impact on learning

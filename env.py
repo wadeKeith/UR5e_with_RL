@@ -97,6 +97,8 @@ class UR5Env(object):
         else:
             self.goal = self.handle_pos
             self.reset_box()
+            if self.vis == True:
+                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= 0)
         robot_obs_old = self.arm_gripper.get_joint_obs().astype(np.float32).copy() 
         robot_obs_new = self.arm_gripper.get_joint_obs().astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
