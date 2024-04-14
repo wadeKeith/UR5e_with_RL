@@ -62,15 +62,18 @@ class UR5Robotiq140:
             link_name_to_index[link_name] = i
 
         return num_joints, link_name_to_index, joint_name_to_index
-    def reset(self):
+    def reset(self,gripper_enable):
         for rest_pose, joint_id in zip(self.arm_rest_poses, self.arm_controllable_joints):
             self._pb.resetJointState(self.embodiment_id, joint_id, rest_pose, 0)
             self._pb.changeDynamics(self.embodiment_id, joint_id, linearDamping=0.04, angularDamping=0.04)
             self._pb.changeDynamics(self.embodiment_id, joint_id, jointDamping=0.01)
         open_angle = 0.715 - math.asin((self.gripper_range[1] - 0.010) / 0.1143)  # angle calculation
-        # self._pb.resetJointState(self.embodiment_id, self.mimic_parent_id, open_angle, 0)
-        self._pb.setJointMotorControl2(self.embodiment_id, self.mimic_parent_id, self._pb.POSITION_CONTROL, targetPosition=open_angle,
+        if gripper_enable:
+            self._pb.resetJointState(self.embodiment_id, self.mimic_parent_id, open_angle, 0)
+        else:
+            self._pb.setJointMotorControl2(self.embodiment_id, self.mimic_parent_id, self._pb.POSITION_CONTROL, targetPosition=open_angle,
                                 force=self.joints[self.mimic_parent_id].maxForce, maxVelocity=self.joints[self.mimic_parent_id].maxVelocity)
+        
         
         
     def open_gripper(self):

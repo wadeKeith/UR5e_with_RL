@@ -87,7 +87,7 @@ class UR5Env(object):
         self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
         self.time = 0
         self._pb.removeAllUserDebugItems()
-        self.arm_gripper.reset()
+        self.arm_gripper.reset(self.gripper_enable)
         # self.reset_box()
         if self.is_train:
             self.goal = self._sample_goal()
