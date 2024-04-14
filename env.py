@@ -94,13 +94,13 @@ class UR5Env(object):
 
         # self._pb.addUserDebugPoints(pointPositions = [[0.48, -0.17256, 0.186809]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
             if self.vis == True:
-                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= 10)
+                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY)
         else:
             self.goal = self.handle_pos
             self.reset_box()
             if self.vis == True:
                 # self._pb.removeAllUserDebugItems()
-                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= 10)
+                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY)
         robot_obs_old = self.arm_gripper.get_joint_obs().astype(np.float32).copy() 
         robot_obs_new = self.arm_gripper.get_joint_obs().astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
