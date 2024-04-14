@@ -5,13 +5,13 @@ import numpy as np
 from tqdm import tqdm
 import torch
 import matplotlib.pyplot as plt
-from sac_her import SACContinuous, ReplayBuffer_Trajectory, Trajectory,Agent_test
+from DDPG_her import DDPG, ReplayBuffer_Trajectory, Trajectory,PolicyNet
 import math
 import pickle
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
-    model = Agent_test(state_dim, hidden_dim, action_dim).to(device)
-    model.load_state_dict(torch.load("./model/sac_her_ur5_%d.pkl" % model_num))
+    model = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
+    model.load_state_dict(torch.load("./model/ddpg_her_ur5_%d.pkl" % model_num))
     model.eval()
     episode_return = 0
     state,_ = env.reset()
@@ -55,12 +55,15 @@ env = UR5Env(sim_params, robot_params,visual_sensor_params)
 state_dim = env.observation_space['observation'].shape[0]+env.observation_space['desired_goal'].shape[0]+env.observation_space['achieved_goal'].shape[0]
 action_dim = env.action_space.shape[0]
 
+
+
 actor_lr = 3e-4
 critic_lr = 3e-3
 alpha_lr = 3e-4
 num_episodes = 1000
 hidden_dim = 256
 gamma = 0.99999
+sigma = 0.1
 tau = 0.005  # 软更新参数
 buffer_size = 100000
 minimal_episodes = 10
@@ -83,9 +86,8 @@ her_buffer = ReplayBuffer_Trajectory(capacity= buffer_size,
                                      batch_size=batch_size,
                                      state_len=state_len,
                                      achieved_goal_len=achieved_goal_len,)
-agent = SACContinuous(state_dim, hidden_dim, action_dim, actor_lr, 
-                 critic_lr, alpha_lr, target_entropy, tau, gamma,
-                 device)
+agent = DDPG(state_dim, hidden_dim, action_dim,
+                 actor_lr, critic_lr, sigma, tau, gamma, device)
 
 return_list = []
 for i in range(100):

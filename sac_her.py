@@ -80,16 +80,18 @@ class ReplayBuffer_Trajectory:
     
 
 class PolicyNetContinuous(torch.nn.Module):
-    def __init__(self, state_dim, hidden_dim, action_dim):
+    def __init__(self, state_dim, hidden_dim, action_dim,device):
         super(PolicyNetContinuous, self).__init__()
         self.fc1 = torch.nn.Linear(state_dim, hidden_dim)
         self.fc_mu = torch.nn.Linear(hidden_dim, action_dim)
         self.fc_std = torch.nn.Linear(hidden_dim, action_dim)
+        self.device = device
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
         mu = self.fc_mu(x)
         std = F.softplus(self.fc_std(x))
+        std = std + 1e-8 * torch.ones(size=std.shape).to(self.device)
         dist = Normal(mu, std)
         normal_sample = dist.rsample()  # rsample()是重参数化采样
         log_prob = dist.log_prob(normal_sample)
@@ -127,7 +129,7 @@ class SACContinuous:
     def __init__(self, state_dim, hidden_dim, action_dim,
                  actor_lr, critic_lr, alpha_lr, target_entropy, tau, gamma,
                  device):
-        self.actor = PolicyNetContinuous(state_dim, hidden_dim, action_dim).to(device)  # 策略网络
+        self.actor = PolicyNetContinuous(state_dim, hidden_dim, action_dim,device).to(device)  # 策略网络
         self.critic_1 = QValueNetContinuous(state_dim, hidden_dim,
                                             action_dim).to(device)  # 第一个Q网络
         self.critic_2 = QValueNetContinuous(state_dim, hidden_dim,

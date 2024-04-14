@@ -41,8 +41,8 @@ class UR5Env(object):
             set_debug_camera(self._pb, visual_sensor_params)
         # Initialize the goal range
         self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
-        self.goal_range_low = np.array([-3, -3, -3])
-        self.goal_range_high = np.array([3, 3, 3])
+        self.goal_range_low = np.array([-1, -1, -1])
+        self.goal_range_high = np.array([1, 1, 1])
         # rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
         # depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
         # seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
