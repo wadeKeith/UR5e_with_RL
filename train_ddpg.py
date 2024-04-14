@@ -47,7 +47,7 @@ sim_params = {"use_gui":False,
               'timestep':1/240,
               'control_type':'end',
               'gripper_enable':False,
-              'is_train':True,
+              'is_train':False,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 env = UR5Env(sim_params, robot_params,visual_sensor_params)
@@ -109,6 +109,7 @@ for i in range(100):
             # her_ratio = 1
             if her_buffer.size() >= minimal_episodes:
                 her_buffer_len_ls = her_buffer.buffer[-1].length
+                her_buffer_minlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
                 her_ratio = (her_buffer_len_ls-1)/env.time_limitation
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
@@ -116,7 +117,7 @@ for i in range(100):
                 pbar.set_postfix({
                     # 'goal':
                     # '%r' % (env.goal),
-                    'her_bf_min_len': her_buffer_len_ls,
+                    'her_bf_min_len': min(her_buffer_minlen_ls),
                     'episode':
                         '%d' % (num_episodes* i + i_episode + 1),
                     "her dones":np.count_nonzero(transition_dict['dones']),
@@ -141,7 +142,7 @@ for i in range(100):
                 })
             pbar.update(1)
     torch.save(agent.actor.state_dict(), "./model/ddpg_her_ur5_%d.pkl" % i)
-    sim_params['is_train'] = False
+    # sim_params['is_train'] = False
     test_env  = UR5Env(sim_params, robot_params,visual_sensor_params)
     evluation_policy(env=test_env, state_dim=agent.state_dim,
                      action_dim = agent.action_dim,
@@ -150,7 +151,7 @@ for i in range(100):
                      model_num=i)
     test_env.close()
     del test_env
-    sim_params['is_train'] = True
+    # sim_params['is_train'] = False
 
 env.close()
 del env

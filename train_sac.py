@@ -107,6 +107,7 @@ for i in range(100):
             # her_ratio = 1
             if her_buffer.size() >= minimal_episodes:
                 her_buffer_len_ls = her_buffer.buffer[-1].length
+                her_buffer_minlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
                 her_ratio = (her_buffer_len_ls-1)/env.time_limitation
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
@@ -114,7 +115,7 @@ for i in range(100):
                 pbar.set_postfix({
                     # 'goal':
                     # '%r' % (env.goal),
-                    'her_bf_min_len': her_buffer_len_ls,
+                    'her_bf_min_len': min(her_buffer_minlen_ls),
                     'episode':
                         '%d' % (num_episodes* i + i_episode + 1),
                     "her dones":np.count_nonzero(transition_dict['dones']),
@@ -152,7 +153,7 @@ for i in range(100):
 
 env.close()
 del env
-with open('her_buffer.pkl', 'wb') as file:
+with open('sac_her_buffer.pkl', 'wb') as file:
     pickle.dump(her_buffer, file)
 episodes_list = list(range(len(return_list)))
 plt.plot(episodes_list, return_list)
