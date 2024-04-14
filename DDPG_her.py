@@ -123,10 +123,15 @@ class DDPG:
         self.sigma = sigma  # 高斯噪声的标准差,均值直接设为0
         self.tau = tau  # 目标网络软更新参数
         self.device = device
+        self.state_dim = state_dim
+        self.hidden_dim = hidden_dim
+        self.epochs = 100
+        self.lr_a = actor_lr
+        self.lr_c = critic_lr
 
     def take_action(self, state):
-        state = torch.tensor([state], dtype=torch.float).to(self.device)
-        action = self.actor(state).detach().cpu().numpy()[0]
+        state = torch.tensor(state, dtype=torch.float).to(self.device)
+        action = self.actor(state).detach().cpu().numpy()
         # 给动作添加噪声，增加探索
         action = action + self.sigma * np.random.randn(self.action_dim)
         return action
@@ -167,3 +172,11 @@ class DDPG:
 
         self.soft_update(self.actor, self.target_actor)  # 软更新策略网络
         self.soft_update(self.critic, self.target_critic)  # 软更新价值网络
+
+    def lr_decay(self, total_steps):
+        lr_a_now = self.lr_a * (1 - total_steps / self.epochs)
+        lr_c_now = self.lr_c * (1 - total_steps / self.epochs)
+        for p in self.actor_optimizer.param_groups:
+            p["lr"] = lr_a_now
+        for p in self.critic_optimizer.param_groups:
+            p["lr"] = lr_c_now

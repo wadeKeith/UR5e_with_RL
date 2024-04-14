@@ -140,7 +140,7 @@ for i in range(100):
                     "info:is success": info['is_success'],
                 })
             pbar.update(1)
-    torch.save(agent.actor.state_dict(), "./model/sac_her_ur5_%d.pkl" % i)
+    torch.save(agent.actor.state_dict(), "./model/ddpg_her_ur5_%d.pkl" % i)
     sim_params['is_train'] = False
     test_env  = UR5Env(sim_params, robot_params,visual_sensor_params)
     evluation_policy(env=test_env, state_dim=agent.state_dim,
@@ -154,11 +154,11 @@ for i in range(100):
 
 env.close()
 del env
-with open('her_buffer.pkl', 'wb') as file:
+with open('ddpg_her_buffer.pkl', 'wb') as file:
     pickle.dump(her_buffer, file)
 episodes_list = list(range(len(return_list)))
 plt.plot(episodes_list, return_list)
 plt.xlabel('Episodes')
 plt.ylabel('Returns')
-plt.title('SAC with HER on {}'.format('UR5'))
+plt.title('DDPG with HER on {}'.format('UR5'))
 plt.show()
