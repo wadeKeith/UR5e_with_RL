@@ -47,7 +47,7 @@ sim_params = {"use_gui":False,
               'timestep':1/240,
               'control_type':'end',
               'gripper_enable':False,
-              'is_train':False,
+              'is_train':True,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 env = UR5Env(sim_params, robot_params,visual_sensor_params)
@@ -57,9 +57,8 @@ action_dim = env.action_space.shape[0]
 
 
 
-actor_lr = 3e-4
+actor_lr = 1e-3
 critic_lr = 3e-3
-alpha_lr = 3e-4
 num_episodes = 1000
 hidden_dim = 256
 gamma = 0.99999
@@ -93,6 +92,7 @@ return_list = []
 for i in range(100):
     agent.lr_decay(i)
     with tqdm(total=int(num_episodes), desc='Iteration %d' % i) as pbar:
+        success_count = 0
         for i_episode in range(num_episodes):
             episode_return = 0
             state,_ = env.reset()
@@ -106,11 +106,13 @@ for i in range(100):
                 traj.store_step(action, state, reward, done)
             her_buffer.add_trajectory(traj)
             return_list.append(episode_return)
-            # her_ratio = 1
+            if info['is_success'] == True:
+                success_count+=1
             if her_buffer.size() >= minimal_episodes:
                 her_buffer_len_ls = her_buffer.buffer[-1].length
                 her_buffer_minlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
-                her_ratio = (her_buffer_len_ls-1)/env.time_limitation
+                # her_ratio = (her_buffer_len_ls-1)/env.time_limitation
+                her_ratio = 0.6
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict)
@@ -122,11 +124,11 @@ for i in range(100):
                         '%d' % (num_episodes* i + i_episode + 1),
                     "her dones":np.count_nonzero(transition_dict['dones']),
                     'return':
-                    '%.3f' % np.array(return_list[-1]),
+                    '%.3f' % np.mean(return_list[:]),
                     "lr": agent.actor_optimizer.param_groups[0][
                                 "lr"],
-                    "info:is success": info['is_success'],
-                    "HER ratio":her_ratio
+                    "is success count": success_count,
+                    # "HER ratio":her_ratio
                 })
             else:
                 pbar.set_postfix({
@@ -135,14 +137,14 @@ for i in range(100):
                     'episode':
                         '%d' % (num_episodes* i + i_episode + 1),
                     'return':
-                    '%.3f' % np.array(return_list[-1]),
+                    '%.3f' % np.mean(return_list[:]),
                     "lr": agent.actor_optimizer.param_groups[0][
                                 "lr"],
-                    "info:is success": info['is_success'],
+                    "is success count": success_count,
                 })
             pbar.update(1)
     torch.save(agent.actor.state_dict(), "./model/ddpg_her_ur5_%d.pkl" % i)
-    # sim_params['is_train'] = False
+    sim_params['is_train'] = False
     test_env  = UR5Env(sim_params, robot_params,visual_sensor_params)
     evluation_policy(env=test_env, state_dim=agent.state_dim,
                      action_dim = agent.action_dim,
@@ -151,7 +153,7 @@ for i in range(100):
                      model_num=i)
     test_env.close()
     del test_env
-    # sim_params['is_train'] = False
+    sim_params['is_train'] = True
 
 env.close()
 del env
