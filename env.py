@@ -41,8 +41,8 @@ class UR5Env(object):
             set_debug_camera(self._pb, visual_sensor_params)
         # Initialize the goal range
         self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
-        self.goal_range_low = np.array([-0.3, -0.3, -0.175])
-        self.goal_range_high = np.array([0.3, 0.3, 0.1])
+        self.goal_range_low = np.array([-0.1, -0.3, -0.175])
+        self.goal_range_high = np.array([0.3, 0.3, 0.175])
         # rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
         # depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
         # seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
@@ -101,13 +101,14 @@ class UR5Env(object):
 
         # self._pb.addUserDebugPoints(pointPositions = [[0.48, -0.17256, 0.186809]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
             if self.vis == True:
-                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY)
+                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY*20)
+                # self._pb.addUserDebugPoints(pointPositions = [np.array([0,-1,0.2])], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
         else:
             self.goal = self.handle_pos
             # self.reset_box()
             if self.vis == True:
                 # self._pb.removeAllUserDebugItems()
-                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY)
+                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY*20)
         robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32).copy() 
         robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
@@ -172,8 +173,8 @@ class UR5Env(object):
         """
         for _ in range(20):
             self._pb.stepSimulation()
-        if self.vis:
-            time.sleep(self.SIMULATION_STEP_DELAY)
+            if self.vis:
+                time.sleep(self.SIMULATION_STEP_DELAY)
 
     def load_standard_environment(self):
         """
