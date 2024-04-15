@@ -183,13 +183,22 @@ class UR5Robotiq140:
     def step_simulation(self):
         raise RuntimeError('`step_simulation` method of RobotBase Class should be hooked by the environment.')
     
-    def get_joint_obs(self) -> np.ndarray:
+    def get_joint_obs(self,control_type,gripper_enable) -> np.ndarray:
         positions = []
-        velocities = []
-        for joint_id in self.control_joint_ids:
-            pos, vel, _, _ = self._pb.getJointState(self.embodiment_id, joint_id)
-            positions.append(pos)
-            velocities.append(vel)
-        finger_pos = np.array(self._pb.getLinkState(self.embodiment_id, self.left_finger_pad_id)[0],dtype=np.float64)
-        robot_obs = np.concatenate([np.array(positions), np.array(velocities), finger_pos])
+        if control_type == 'joint':
+            control_joint_ls = self.control_joint_ids if gripper_enable else self.arm_controllable_joints
+            for joint_id in control_joint_ls:
+                pos, _, _, _ = self._pb.getJointState(self.embodiment_id, joint_id)
+                positions.append(pos)
+        else:
+            positions_arm = self._pb.getLinkState(self.embodiment_id, self.left_finger_pad_id)[0]
+            if gripper_enable:
+                positions_gripper = []
+                for joint_id in self.control_joint_ids[6:]:
+                    pos, _, _, _ = self._pb.getJointState(self.embodiment_id, joint_id)
+                    positions_gripper.append(pos)
+                positions = list(positions_arm)+positions_gripper
+            else:
+                positions = list(positions_arm)
+        robot_obs = np.array(positions)
         return robot_obs

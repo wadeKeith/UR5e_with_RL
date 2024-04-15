@@ -46,11 +46,18 @@ class UR5Env(object):
         # rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
         # depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
         # seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
-        positions_bound = np.ones(shape=(self.arm_gripper.num_control_dofs,))*3.14159265359
-        velocity_bound = np.array([3.16, 3.16, 3.16, 3.3, 3.3, 3.3, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1])
-        assert velocity_bound.shape[0] == self.arm_gripper.num_control_dofs
-        ee_pos_bound = np.array([8.5, 8.5, 8.5])
-        observation_bound = np.concatenate([positions_bound, velocity_bound, ee_pos_bound,positions_bound, velocity_bound, ee_pos_bound])
+        if self.control_type=='joint' and self.gripper_enable:
+            observation_bound_now = np.ones(shape=(self.arm_gripper.num_control_dofs,))*3.14159265359
+            observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
+        elif self.control_type=='joint' and self.gripper_enable==False:
+            observation_bound_now = np.ones(shape=(self.arm_gripper.arm_num_dofs,))*3.14159265359
+            observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
+        elif self.control_type=='end' and self.gripper_enable:
+            observation_bound_now = np.concatenate([np.array([8.5, 8.5, 8.5]),np.ones(shape=(self.arm_gripper.num_control_dofs-self.arm_gripper.arm_num_dofs,))*3.14159265359])
+            observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
+        else:
+            observation_bound_now = np.array([8.5, 8.5, 8.5])
+            observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
         observation_space = spaces.Box(-observation_bound, observation_bound, dtype=np.float32)
         achieved_goal_bound = np.array([8.5, 8.5, 8.5])
         desired_goal_bound = np.array([8.5, 8.5, 8.5])
@@ -101,8 +108,8 @@ class UR5Env(object):
             if self.vis == True:
                 # self._pb.removeAllUserDebugItems()
                 self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY)
-        robot_obs_old = self.arm_gripper.get_joint_obs().astype(np.float32).copy() 
-        robot_obs_new = self.arm_gripper.get_joint_obs().astype(np.float32) 
+        robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32).copy() 
+        robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
         obs_dict = self._get_obs(robot_obs)
         obs = self.dictobs2npobs(obs_dict, self.observation_space)
@@ -117,7 +124,7 @@ class UR5Env(object):
                          'joint' for joint position control
         """
         self.time +=1
-        robot_obs_old = self.arm_gripper.get_joint_obs().astype(np.float32).copy() 
+        robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32).copy() 
         assert self.control_type in ('joint', 'end')
         if self.gripper_enable:
             self.arm_gripper.move_ee(action[:-1], self.control_type)
@@ -125,7 +132,7 @@ class UR5Env(object):
         else:
             self.arm_gripper.move_ee(action, self.control_type)
         self.step_simulation()
-        robot_obs_new = self.arm_gripper.get_joint_obs().astype(np.float32) 
+        robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
         obs_dict = self._get_obs(robot_obs)
         obs = self.dictobs2npobs(obs_dict, self.observation_space)

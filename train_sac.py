@@ -95,14 +95,15 @@ for i in range(100):
         for i_episode in range(num_episodes):
             episode_return = 0
             state,_ = env.reset()
-            traj = Trajectory(state)
+            traj = Trajectory(state.copy())
             done = False
             while not done:
-                action = agent.take_action(state)
+                with torch.no_grad():
+                    action = agent.take_action(state)
                 state, reward, terminated, truncated, info = env.step(action)
                 done = terminated or truncated
                 episode_return += reward
-                traj.store_step(action, state, reward, done)
+                traj.store_step(action.copy(), state.copy(), reward, done)
             her_buffer.add_trajectory(traj)
             return_list.append(episode_return)
             if info['is_success'] == True:
