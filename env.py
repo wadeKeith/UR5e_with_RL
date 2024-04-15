@@ -41,8 +41,8 @@ class UR5Env(object):
             set_debug_camera(self._pb, visual_sensor_params)
         # Initialize the goal range
         self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
-        self.goal_range_low = np.array([-0.1, -0.3, -0.175])
-        self.goal_range_high = np.array([0.3, 0.3, 0.175])
+        self.goal_range_low = np.array([0, -0.2, -0.175])
+        self.goal_range_high = np.array([0.4, 0.2, 0.175])
         # rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
         # depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
         # seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
@@ -210,6 +210,7 @@ class UR5Env(object):
 
     def get_achieved_goal(self) -> np.ndarray:
         object_position = np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.left_finger_pad_id)[4],dtype=np.float64)
+        # self._pb.addUserDebugPoints(pointPositions = [object_position], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
         return object_position
     def _sample_goal(self) -> np.ndarray:
         """Sample a goal."""

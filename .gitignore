@@ -5,3 +5,4 @@ __pycache__*
 model/*
 logs/*
 model/ur5_robotiq140_ppo.zip
+*.pkl

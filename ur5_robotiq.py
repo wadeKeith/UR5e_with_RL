@@ -102,6 +102,7 @@ class UR5Robotiq140:
         if control_method == 'end':
             ee_displacement = action * self.action_scale  # limit maximum change in position
             ee_position =np.array(self._pb.getLinkState(self.embodiment_id, self.tcp_link_id)[4])
+            # self._pb.addUserDebugPoints(pointPositions = [ee_position], pointColorsRGB = [[0, 0, 255]], pointSize= 40, lifeTime= 0)
             target_ee_position = ee_position + ee_displacement
             # Clip the height target. For some reason, it has a great impact on learning
             target_ee_position[2] = np.max((0, target_ee_position[2]))
@@ -192,6 +193,7 @@ class UR5Robotiq140:
                 positions.append(pos)
         else:
             positions_arm = self._pb.getLinkState(self.embodiment_id, self.tcp_link_id)[4]
+            # self._pb.addUserDebugPoints(pointPositions = [positions_arm], pointColorsRGB = [[0, 0, 255]], pointSize= 40, lifeTime= 0)
             if gripper_enable:
                 positions_gripper = []
                 for joint_id in self.control_joint_ids[6:]:
