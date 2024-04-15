@@ -28,21 +28,21 @@ class UR5Env(object):
         )
         self.arm_gripper.step_simulation = self.step_simulation
         # initialize the box
-        if self.is_train == False:
-            self.boxID = self._pb.loadURDF("./assets/urdfs/skew-box-button.urdf",
-                                    [0.7, 0.0, 0.0],
-                                    # p.getQuaternionFromEuler([0, 1.5706453, 0]),
-                                    self._pb.getQuaternionFromEuler([0, 0, 0]),
-                                    useFixedBase=True,
-                                    flags=self._pb.URDF_MERGE_FIXED_LINKS | self._pb.URDF_USE_SELF_COLLISION)
+        # if self.is_train == False:
+        #     self.boxID = self._pb.loadURDF("./assets/urdfs/skew-box-button.urdf",
+        #                             [0.7, 0.0, 0.0],
+        #                             # p.getQuaternionFromEuler([0, 1.5706453, 0]),
+        #                             self._pb.getQuaternionFromEuler([0, 0, 0]),
+        #                             useFixedBase=True,
+        #                             flags=self._pb.URDF_MERGE_FIXED_LINKS | self._pb.URDF_USE_SELF_COLLISION)
         # # Initialize the camera
         # self.camera = Camera(self._pb, visual_sensor_params)
         if self.vis:
             set_debug_camera(self._pb, visual_sensor_params)
         # Initialize the goal range
         self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
-        self.goal_range_low = np.array([-0.3, -0.3, -0.3])
-        self.goal_range_high = np.array([0.3, 0.3, 0.3])
+        self.goal_range_low = np.array([-0.3, -0.3, -0.175])
+        self.goal_range_high = np.array([0.3, 0.3, 0.1])
         # rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
         # depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
         # seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
@@ -53,14 +53,14 @@ class UR5Env(object):
             observation_bound_now = np.ones(shape=(self.arm_gripper.arm_num_dofs,))*3.14159265359
             observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
         elif self.control_type=='end' and self.gripper_enable:
-            observation_bound_now = np.concatenate([np.array([8.5, 8.5, 8.5]),np.ones(shape=(self.arm_gripper.num_control_dofs-self.arm_gripper.arm_num_dofs,))*3.14159265359])
+            observation_bound_now = np.concatenate([np.array([2, 2, 2]),np.ones(shape=(self.arm_gripper.num_control_dofs-self.arm_gripper.arm_num_dofs,))*3.14159265359])
             observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
         else:
-            observation_bound_now = np.array([8.5, 8.5, 8.5])
+            observation_bound_now = np.array([2, 2, 2])
             observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
         observation_space = spaces.Box(-observation_bound, observation_bound, dtype=np.float32)
-        achieved_goal_bound = np.array([8.5, 8.5, 8.5])
-        desired_goal_bound = np.array([8.5, 8.5, 8.5])
+        achieved_goal_bound = np.array([2, 2, 2])
+        desired_goal_bound = np.array([2, 2, 2])
         achieved_space = spaces.Box(-achieved_goal_bound, achieved_goal_bound, dtype=np.float32)
         desired_space = spaces.Box(-desired_goal_bound, desired_goal_bound, dtype=np.float32)
         # self.observation_space = spaces.Dict({
@@ -80,7 +80,7 @@ class UR5Env(object):
         n_action += 1 if self.gripper_enable else 0
         self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
         self.time = None
-        self.time_limitation = 1000
+        self.time_limitation = 100
         self.goal = None
 
         
@@ -104,7 +104,7 @@ class UR5Env(object):
                 self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY)
         else:
             self.goal = self.handle_pos
-            self.reset_box()
+            # self.reset_box()
             if self.vis == True:
                 # self._pb.removeAllUserDebugItems()
                 self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY)
@@ -170,7 +170,8 @@ class UR5Env(object):
         """
         Hook p.stepSimulation()
         """
-        self._pb.stepSimulation()
+        for _ in range(20):
+            self._pb.stepSimulation()
         if self.vis:
             time.sleep(self.SIMULATION_STEP_DELAY)
 
@@ -207,7 +208,7 @@ class UR5Env(object):
 
 
     def get_achieved_goal(self) -> np.ndarray:
-        object_position = np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.left_finger_pad_id)[0],dtype=np.float64)
+        object_position = np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.left_finger_pad_id)[4],dtype=np.float64)
         return object_position
     def _sample_goal(self) -> np.ndarray:
         """Sample a goal."""

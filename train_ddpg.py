@@ -58,15 +58,15 @@ action_dim = env.action_space.shape[0]
 
 
 actor_lr = 1e-3
-critic_lr = 3e-3
-num_episodes = 1000
-hidden_dim = 256
+critic_lr = 1e-3
+num_episodes = 100
+hidden_dim = 128
 gamma = 0.99999
 sigma = 0.1
 tau = 0.005  # 软更新参数
 buffer_size = 100000
-minimal_episodes = 10
-n_train = 20
+minimal_episodes = 5
+n_train = 5
 batch_size = 512
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
@@ -118,8 +118,8 @@ for i in range(100):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict)
                 pbar.set_postfix({
-                    # 'goal':
-                    # '%r' % (env.goal),
+                    'goal':
+                    '%r' % (env.goal),
                     'her_bf_min_len': min(her_buffer_minlen_ls),
                     'episode':
                         '%d' % (num_episodes* i + i_episode + 1),
@@ -146,6 +146,7 @@ for i in range(100):
             pbar.update(1)
     torch.save(agent.actor.state_dict(), "./model/ddpg_her_ur5_%d.pkl" % i)
     sim_params['is_train'] = False
+    # sim_params['use_gui'] = True
     test_env  = UR5Env(sim_params, robot_params,visual_sensor_params)
     evluation_policy(env=test_env, state_dim=agent.state_dim,
                      action_dim = agent.action_dim,
@@ -155,6 +156,7 @@ for i in range(100):
     test_env.close()
     del test_env
     sim_params['is_train'] = True
+    # sim_params['use_gui'] = False
 
 env.close()
 del env
