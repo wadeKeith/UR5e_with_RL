@@ -83,6 +83,6 @@ for epoch in range(10000):
         savetime += 1
         print("This is " + str(savetime) + " savetime ")
         her_buffer.add_trajectory(traj)
-file = "ur5_reach_"+str(savetime)+"_expert_data.pkl"
-with open(file, 'wb') as file:
+file_name = "ur5_reach_"+str(savetime)+"_expert_data.pkl"
+with open(file_name, 'wb') as file:
     pickle.dump(her_buffer, file)
