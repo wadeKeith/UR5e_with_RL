@@ -41,7 +41,7 @@ sim_params = {"use_gui":False,
             'is_train':True,
             'distance_threshold':0.05,}
 
-expert_data_num = 5000
+expert_data_num = 10000
 buffer_size = 100000
 batch_size = 512
 env = UR5Env(sim_params, robot_params,visual_sensor_params)
