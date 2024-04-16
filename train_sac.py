@@ -66,7 +66,7 @@ state_dim = env.observation_space['observation'].shape[0]+env.observation_space[
 action_dim = env.action_space.shape[0]
 
 actor_lr = 1e-3
-critic_lr = 3e-3
+critic_lr = 1e-3
 alpha_lr = 1e-3
 num_episodes = 100
 hidden_dim = 128
@@ -75,7 +75,7 @@ tau = 0.01  # 软更新参数
 buffer_size = 100000
 minimal_episodes = 5
 n_train = 5
-batch_size = 512
+batch_size = 256
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
 target_entropy = -env.action_space.shape[0]
