@@ -82,6 +82,7 @@ class UR5Env(object):
         self.time = None
         self.time_limitation = 100
         self.goal = None
+        self.n_sub_step = 100
 
         
 
@@ -93,7 +94,7 @@ class UR5Env(object):
         """
         self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
         self.time = 0
-        self._pb.resetSimulation()
+        # self._pb.resetSimulation()
         self.arm_gripper.reset(self.gripper_enable)
         # self.reset_box()
         if self.is_train:
@@ -101,14 +102,14 @@ class UR5Env(object):
 
         # self._pb.addUserDebugPoints(pointPositions = [[0.48, -0.17256, 0.186809]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
             if self.vis == True:
-                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY*20)
+                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY*self.n_sub_step)
                 # self._pb.addUserDebugPoints(pointPositions = [np.array([0,-1,0.2])], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
         else:
             self.goal = self.handle_pos
             # self.reset_box()
             if self.vis == True:
                 # self._pb.removeAllUserDebugItems()
-                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY*20)
+                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY*self.n_sub_step)
         robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32).copy() 
         robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
@@ -171,7 +172,7 @@ class UR5Env(object):
         """
         Hook p.stepSimulation()
         """
-        for _ in range(400):
+        for _ in range(self.n_sub_step):
             self._pb.stepSimulation()
             if self.vis:
                 time.sleep(self.SIMULATION_STEP_DELAY)

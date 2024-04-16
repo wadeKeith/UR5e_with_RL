@@ -110,7 +110,7 @@ class UR5Robotiq140:
                                                        self.arm_lower_limits, self.arm_upper_limits, self.arm_joint_ranges,
                                                        maxNumIterations=100))
             joint_poses = joint_poses[:self.arm_num_dofs]
-            self._pb.addUserDebugPoints(pointPositions = [target_ee_position], pointColorsRGB = [[0, 0, 255]], pointSize= 40, lifeTime= 0)
+            # self._pb.addUserDebugPoints(pointPositions = [target_ee_position], pointColorsRGB = [[0, 0, 255]], pointSize= 40, lifeTime= 0)
         elif control_method == 'joint':
             assert len(action) == self.arm_num_dofs
             arm_joint_ctrl = action * self.action_scale  # limit maximum change in position
