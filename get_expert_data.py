@@ -38,7 +38,7 @@ sim_params = {"use_gui":False,
 random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
-expert_data_num = 1000
+expert_data_num = 5000
 buffer_size = 100000
 batch_size = 512
 env = UR5Env(sim_params, robot_params,visual_sensor_params)
@@ -53,7 +53,7 @@ her_buffer = ReplayBuffer_Trajectory(capacity= buffer_size,
                                     achieved_goal_len=achieved_goal_len,)
 
 savetime = 0
-for epoch in range(10000):
+for epoch in range(100000):
     if savetime >= expert_data_num:
         break
     # reset the environment

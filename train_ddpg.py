@@ -53,6 +53,7 @@ sim_params = {"use_gui":False,
 random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
+use_expert_data = True
 
 env = UR5Env(sim_params, robot_params,visual_sensor_params)
 
@@ -81,12 +82,19 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 
 
 
-her_buffer = ReplayBuffer_Trajectory(capacity= buffer_size, 
-                                     dis_threshold=sim_params['distance_threshold'], 
-                                     use_her=True,
-                                     batch_size=batch_size,
-                                     state_len=state_len,
-                                     achieved_goal_len=achieved_goal_len,)
+if use_expert_data:
+    with open('ur5_reach_5000_expert_data.pkl', 'rb') as f:
+    # 读取并反序列化数据
+        her_buffer = pickle.load(f)
+    f.close()
+else:
+    her_buffer = ReplayBuffer_Trajectory(capacity= buffer_size, 
+                                        dis_threshold=sim_params['distance_threshold'], 
+                                        use_her=True,
+                                        batch_size=batch_size,
+                                        state_len=state_len,
+                                        achieved_goal_len=achieved_goal_len,)
+    
 agent = DDPG(state_dim, hidden_dim, action_dim,
                  actor_lr, critic_lr, sigma, tau, gamma, device)
 
