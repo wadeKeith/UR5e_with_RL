@@ -82,7 +82,7 @@ class UR5Env(object):
         self.time = None
         self.time_limitation = 100
         self.goal = None
-        self.n_sub_step = 100
+        self.n_sub_step = 50
 
         
 
@@ -98,7 +98,7 @@ class UR5Env(object):
         self.arm_gripper.reset(self.gripper_enable)
         # self.reset_box()
         if self.is_train:
-            self.goal = self._sample_goal()
+            self.goal = self._sample_goal().copy()
 
         # self._pb.addUserDebugPoints(pointPositions = [[0.48, -0.17256, 0.186809]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
             if self.vis == True:
