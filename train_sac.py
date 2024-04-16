@@ -24,6 +24,13 @@ def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
         episode_return += reward
     print("Test rawrd of the model %d is %.3f and info: is_success: %r, goal is %r" % (model_num, episode_return, info['is_success'],env.goal))
 
+
+seed = 3407
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
 reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
                                math.pi/2, 0]
 reset_gripper_range = [0, 0.085]
@@ -50,9 +57,7 @@ sim_params = {"use_gui":False,
               'is_train':True,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
-random.seed(0)
-np.random.seed(0)
-torch.manual_seed(0)
+
 use_expert_data = True
 
 env = UR5Env(sim_params, robot_params,visual_sensor_params)
@@ -60,17 +65,17 @@ env = UR5Env(sim_params, robot_params,visual_sensor_params)
 state_dim = env.observation_space['observation'].shape[0]+env.observation_space['desired_goal'].shape[0]+env.observation_space['achieved_goal'].shape[0]
 action_dim = env.action_space.shape[0]
 
-actor_lr = 3e-4
+actor_lr = 1e-3
 critic_lr = 3e-3
-alpha_lr = 3e-4
+alpha_lr = 1e-3
 num_episodes = 100
-hidden_dim = 128
+hidden_dim = 256
 gamma = 0.99999
 tau = 0.005  # 软更新参数
 buffer_size = 100000
 minimal_episodes = 5
-n_train = 5
-batch_size = 512
+n_train = 10
+batch_size = 128
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
 target_entropy = -env.action_space.shape[0]
@@ -113,22 +118,24 @@ for i in range(100):
                 done = terminated or truncated
                 episode_return += reward
                 traj.store_step(action.copy(), state.copy(), reward, done)
-            her_buffer.add_trajectory(traj)
+            # her_buffer.add_trajectory(traj)
             return_list.append(episode_return)
             if info['is_success'] == True:
                 success_count+=1
+                her_buffer.add_trajectory(traj)
             if her_buffer.size() >= minimal_episodes:
-                her_buffer_len_ls = her_buffer.buffer[-1].length
-                her_buffer_minlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
+                # her_buffer_len_ls = her_buffer.buffer[-1].length
+                # her_buffer_minlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
                 # her_ratio = (her_buffer_len_ls-1)/env.time_limitation
-                her_ratio = 0.7
+                her_ratio = 0.2
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict)
                 pbar.set_postfix({
                     'goal':
                     '%r' % (env.goal),
-                    'her_bf_min_len': min(her_buffer_minlen_ls),
+                    # 'her_bf_min_len': min(her_buffer_minlen_ls),
+                    'her_size':her_buffer.size(),
                     'episode':
                         '%d' % (num_episodes* i + i_episode + 1),
                     "her dones":np.count_nonzero(transition_dict['dones']),

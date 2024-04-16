@@ -9,7 +9,12 @@ import pickle
 import tqdm
 
 
-
+seed = 3407
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
 reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
                             math.pi/2, 0]
 reset_gripper_range = [0, 0.085]
@@ -35,9 +40,7 @@ sim_params = {"use_gui":False,
             'gripper_enable':False,
             'is_train':True,
             'distance_threshold':0.05,}
-random.seed(0)
-np.random.seed(0)
-torch.manual_seed(0)
+
 expert_data_num = 5000
 buffer_size = 100000
 batch_size = 512
