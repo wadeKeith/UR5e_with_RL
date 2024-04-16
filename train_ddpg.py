@@ -50,6 +50,10 @@ sim_params = {"use_gui":False,
               'is_train':True,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
+random.seed(0)
+np.random.seed(0)
+torch.manual_seed(0)
+
 env = UR5Env(sim_params, robot_params,visual_sensor_params)
 
 state_dim = env.observation_space['observation'].shape[0]+env.observation_space['desired_goal'].shape[0]+env.observation_space['achieved_goal'].shape[0]
@@ -75,9 +79,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
     "mps")
 
 
-random.seed(0)
-np.random.seed(0)
-torch.manual_seed(0)
+
 
 her_buffer = ReplayBuffer_Trajectory(capacity= buffer_size, 
                                      dis_threshold=sim_params['distance_threshold'], 
