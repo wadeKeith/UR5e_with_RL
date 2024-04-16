@@ -19,6 +19,7 @@ class UR5Robotiq140:
         self.gripper_range = robot_params["reset_gripper_range"]
         self.load_urdf()
         self.left_finger_pad_id = self.link_name_to_index['left_inner_finger_pad']
+        self.right_finger_pad_id = self.link_name_to_index['right_inner_finger_pad']
         
         # set info specific to arm
         self.setup_ur5_info()

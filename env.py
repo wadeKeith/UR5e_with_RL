@@ -80,7 +80,7 @@ class UR5Env(object):
         n_action += 1 if self.gripper_enable else 0
         self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
         self.time = None
-        self.time_limitation = 100
+        self.time_limitation = 200
         self.goal = None
         self.n_sub_step = 50
 
@@ -210,9 +210,13 @@ class UR5Env(object):
 
 
     def get_achieved_goal(self) -> np.ndarray:
-        object_position = np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.left_finger_pad_id)[4],dtype=np.float64)
-        # self._pb.addUserDebugPoints(pointPositions = [object_position], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
-        return object_position
+        left_finger_pad_position = np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.left_finger_pad_id)[4],dtype=np.float64)
+        right_finger_pad_position = np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.right_finger_pad_id)[4],dtype=np.float64)
+        # self._pb.addUserDebugPoints(pointPositions = [left_finger_pad_position], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
+        # self._pb.addUserDebugPoints(pointPositions = [right_finger_pad_position], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
+        achieved_goal_finger_pos = (left_finger_pad_position+right_finger_pad_position)/2
+        # self._pb.addUserDebugPoints(pointPositions = [achieved_goal_finger_pos], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
+        return achieved_goal_finger_pos
     def _sample_goal(self) -> np.ndarray:
         """Sample a goal."""
         goal = self.handle_pos  # z offset for the cube center
