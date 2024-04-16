@@ -1,16 +1,29 @@
 import numpy as np
-from env import Env
+from env import UR5Env
+import random
+import numpy as np
+from tqdm import tqdm
+import torch
+import matplotlib.pyplot as plt
+from DDPG_her import DDPG, ReplayBuffer_Trajectory, Trajectory,PolicyNet
 import math
-from stable_baselines3.common.env_checker import check_env
-import gymnasium as gym
+import pickle
 
-from stable_baselines3 import PPO
-from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
+    model = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
+    model.load_state_dict(torch.load("./model/ddpg_her_ur5_%d.pkl" % model_num))
+    model.eval()
+    episode_return = 0
+    state,_ = env.reset()
+    done = False
+    while not done:
+        state = torch.tensor(state, dtype=torch.float).to(device)
+        action = model(state).detach().cpu().numpy()
+        state, reward, terminated, truncated, info = env.step(action)
+        done = terminated or truncated
+        episode_return += reward
+    print("Test rawrd of the model %d is %.3f and info: is_success: %r, goal is %r" % (model_num, episode_return, info['is_success'],env.goal))
 
-root_path = '/Users/yin/Documents/GitHub/robotics_pybullet_learn/UR5'
-timestep = 1/240
-seed = 1234
 reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
                                math.pi/2, 0]
 reset_gripper_range = [0, 0.085]
@@ -29,24 +42,19 @@ robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
-use_gui = True
-env_kwargs_dict = {"show_gui": use_gui, "timestep": timestep, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
+# control type: joint, end
+sim_params = {"use_gui":True,
+              'timestep':1/240,
+              'control_type':'end',
+              'gripper_enable':False,
+              'is_train':True,
+              'distance_threshold':0.05,}
+env = UR5Env(sim_params, robot_params,visual_sensor_params)
 
-
-vec_env = Env(use_gui, timestep, robot_params,visual_sensor_params)
-obs,_ = vec_env.reset()
-box_pos = (0.69, 0.2, 0.8)+ (math.pi/2,math.pi/2,0)+(0.085,)
-obs_next, reward, done, truncated, info = vec_env.step(box_pos,control_method='end')
-box_pos = (0.69,0,0.8)+ (math.pi/2,math.pi/2,0)+(0.085,)
-obs_next, reward, done, truncated, info = vec_env.step(box_pos,control_method='end')
-
-
+obs,_ = env.reset()
+state, reward, terminated, truncated, info = env.step(np.array([1,1,1]))
+t = 1
 while True:
-    vec_env.step_simulation()
-    # time.sleep(timestep)
-    q_key = ord("q")
-    keys = vec_env._pb.getKeyboardEvents()
-    if q_key in keys and keys[q_key] & vec_env._pb.KEY_WAS_TRIGGERED:
-        exit()
-# obs_next, reward, done, truncated, info = vec_env.step([math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9, math.pi/2, math.pi/4, 0.085])
-# obs_next1, reward1, done, truncated, info = vec_env.step([math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9, math.pi/2, 0, 0.085])
+    env.step_simulation()
+    t +=1
+    

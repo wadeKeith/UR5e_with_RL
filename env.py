@@ -171,7 +171,7 @@ class UR5Env(object):
         """
         Hook p.stepSimulation()
         """
-        for _ in range(20):
+        for _ in range(400):
             self._pb.stepSimulation()
             if self.vis:
                 time.sleep(self.SIMULATION_STEP_DELAY)

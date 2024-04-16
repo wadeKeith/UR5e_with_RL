@@ -9,7 +9,7 @@ class UR5Robotiq140:
         self.vis = use_gui
         self._pb = pb
         self.arm_num_dofs = 6
-        self.action_scale = 0.1
+        self.action_scale = 0.01
         self.gripper_scale = 0.02
         if "tcp_link_name" in robot_params:
             self.tcp_link_name = robot_params["tcp_link_name"]
@@ -107,9 +107,10 @@ class UR5Robotiq140:
             # Clip the height target. For some reason, it has a great impact on learning
             target_ee_position[2] = np.max((0, target_ee_position[2]))
             joint_poses =np.array(self._pb.calculateInverseKinematics(self.embodiment_id, self.tcp_link_id, target_ee_position, self._pb.getQuaternionFromEuler([0,0,0]),
-                                                       self.arm_lower_limits, self.arm_upper_limits, self.arm_joint_ranges, self.arm_rest_poses,
-                                                       maxNumIterations=20))
+                                                       self.arm_lower_limits, self.arm_upper_limits, self.arm_joint_ranges,
+                                                       maxNumIterations=100))
             joint_poses = joint_poses[:self.arm_num_dofs]
+            self._pb.addUserDebugPoints(pointPositions = [target_ee_position], pointColorsRGB = [[0, 0, 255]], pointSize= 40, lifeTime= 0)
         elif control_method == 'joint':
             assert len(action) == self.arm_num_dofs
             arm_joint_ctrl = action * self.action_scale  # limit maximum change in position
