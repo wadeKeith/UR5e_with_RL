@@ -42,7 +42,7 @@ class UR5Env(object):
         # Initialize the goal range
         self.handle_pos = np.array([0.645, 1.4456028966473391e-18, 0.175])
         self.goal_range_low = np.array([0, -0.2, -0.175])
-        self.goal_range_high = np.array([0.4, 0.2, 0.175])
+        self.goal_range_high = np.array([0.2, 0.2, 0.175])
         # rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
         # depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
         # seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
