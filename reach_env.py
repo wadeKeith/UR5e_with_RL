@@ -7,7 +7,7 @@ import numpy as np
 import math
 
 
-class UR5Env(object):
+class Reach_UR5Env(object):
     def __init__(self, sim_params, robot_params, visual_sensor_params):
         # super().__init__()
         self.vis = sim_params['use_gui']

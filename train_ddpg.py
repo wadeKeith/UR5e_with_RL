@@ -1,5 +1,5 @@
 import numpy as np
-from env import UR5Env
+from reach_env import Reach_UR5Env
 import random
 import numpy as np
 from tqdm import tqdm
@@ -62,7 +62,7 @@ sim_params = {"use_gui":False,
 
 use_expert_data = True
 
-env = UR5Env(sim_params, robot_params,visual_sensor_params)
+env = Reach_UR5Env(sim_params, robot_params,visual_sensor_params)
 
 state_dim = env.observation_space['observation'].shape[0]+env.observation_space['desired_goal'].shape[0]+env.observation_space['achieved_goal'].shape[0]
 action_dim = env.action_space.shape[0]
@@ -166,7 +166,7 @@ for i in range(100):
     torch.save(agent.actor.state_dict(), "./model/ddpg_her_ur5_%d.pkl" % i)
     sim_params['is_train'] = False
     # sim_params['use_gui'] = True
-    test_env  = UR5Env(sim_params, robot_params,visual_sensor_params)
+    test_env  = Reach_UR5Env(sim_params, robot_params,visual_sensor_params)
     evluation_policy(env=test_env, state_dim=agent.state_dim,
                      action_dim = agent.action_dim,
                      hidden_dim=agent.hidden_dim, 

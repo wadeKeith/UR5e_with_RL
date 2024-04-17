@@ -1,5 +1,5 @@
 import numpy as np
-from env import UR5Env
+from reach_env import Reach_UR5Env
 import random
 import numpy as np
 from sac_her import SACContinuous, ReplayBuffer_Trajectory, Trajectory,Agent_test
@@ -44,7 +44,7 @@ sim_params = {"use_gui":False,
 expert_data_num = 10000
 buffer_size = 100000
 batch_size = 512
-env = UR5Env(sim_params, robot_params,visual_sensor_params)
+env = Reach_UR5Env(sim_params, robot_params,visual_sensor_params)
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
 desired_goal_len = env.observation_space['desired_goal'].shape[0]
