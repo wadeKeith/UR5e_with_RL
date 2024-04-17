@@ -106,6 +106,7 @@ class UR5Env(object):
         else:
             self.goal = self.handle_pos
             # self.reset_box()
+            # +np.array([0.1,-0.1,-0.1])
             if self.vis == True:
                 # self._pb.removeAllUserDebugItems()
                 self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY*self.n_sub_step)

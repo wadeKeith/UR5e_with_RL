@@ -52,11 +52,11 @@ robot_params = {
     "reset_gripper_range": reset_gripper_range,
 }
 # control type: joint, end
-sim_params = {"use_gui":False,
+sim_params = {"use_gui":True,
               'timestep':1/240,
               'control_type':'end',
               'gripper_enable':False,
-              'is_train':True,
+              'is_train':False,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
@@ -81,16 +81,11 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 hidden_dim = 128
     
 
-
-sim_params['is_train'] = False
-sim_params['use_gui'] = True
-test_env  = UR5Env(sim_params, robot_params,visual_sensor_params)
-# test_env.goal = test_env.handle_pos+np([0.1,0.1,0.05])
-evluation_policy(env=test_env, state_dim=12,
+evluation_policy(env=env, state_dim=12,
                     action_dim = 3,
                     hidden_dim=hidden_dim, 
                     device=device,
-                    model_num=57)
-test_env.close()
-del test_env
+                    model_num=65)
+env.close()
+del env
 
