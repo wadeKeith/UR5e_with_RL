@@ -1,5 +1,5 @@
 import numpy as np
-from reach_env import Reach_UR5Env
+from pick_place_env import PickPlace_UR5Env
 import random
 import numpy as np
 from sac_her import SACContinuous, ReplayBuffer_Trajectory, Trajectory,Agent_test
@@ -7,6 +7,7 @@ import math
 import torch
 import pickle
 import tqdm
+from utilize import distance
 
 
 seed = 3407
@@ -15,8 +16,8 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
-reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
-                            math.pi/2, 0]
+reset_arm_poses = [0, -math.pi/2, math.pi*4/9, -math.pi*4/9,
+                            -math.pi/2, 0]
 reset_gripper_range = [0, 0.085]
 visual_sensor_params = {
         'image_size': [128, 128],
@@ -34,17 +35,17 @@ robot_params = {
     "reset_gripper_range": reset_gripper_range,
 }
 # control type: joint, end
-sim_params = {"use_gui":False,
+sim_params = {"use_gui":True,
             'timestep':1/240,
             'control_type':'end',
-            'gripper_enable':False,
+            'gripper_enable':True,
             'is_train':True,
             'distance_threshold':0.05,}
 
 expert_data_num = 10000
 buffer_size = 100000
-batch_size = 512
-env = Reach_UR5Env(sim_params, robot_params,visual_sensor_params)
+batch_size = 256
+env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
 desired_goal_len = env.observation_space['desired_goal'].shape[0]
@@ -60,32 +61,46 @@ for epoch in range(100000):
     if savetime >= expert_data_num:
         break
     # reset the environment
-    observation, _ = env.reset()
-    traj = Trajectory(observation.copy())
+    obs_norm, _,obs_dict = env.reset()
+    traj = Trajectory(obs_norm.copy())
     done = False
     # start to collect samples
-    # step_time = 0
+    step_time = 0
     while not done:
-        # step_time += 1
-        # obs = observation[:state_len]
-        achieved_goal = observation[state_len:state_len+achieved_goal_len]
-        desired_goal = observation[state_len+achieved_goal_len:]
+        
+        obs = obs_dict['observation']
+        achieved_goal = obs_dict['achieved_goal']
+        desired_goal = obs_dict['desired_goal']
         # ee_pos = obs[int(state_len/2):]
-        finger_pos = achieved_goal.copy()
-        # print('delta',(desired_goal-finger_pos)*env.observation_space['desired_goal'].high[0])
-        dx = np.clip((desired_goal[0]-finger_pos[0])*env.observation_space['desired_goal'].high[0]/env.arm_gripper.action_scale,-1,1)
-        dy = np.clip((desired_goal[1]-finger_pos[1])*env.observation_space['desired_goal'].high[0]/env.arm_gripper.action_scale,-1,1)
-        dz = np.clip((desired_goal[2]-finger_pos[2])*env.observation_space['desired_goal'].high[0]/env.arm_gripper.action_scale,-1,1)
-        action = np.array([dx,dy,dz])
+        finger_pos = obs[int(state_len/2):int(state_len/2)+3]
+        # print('delta',(achieved_goal-finger_pos))
+        if distance(achieved_goal,finger_pos)>sim_params['distance_threshold'] and distance(achieved_goal,desired_goal)>sim_params['distance_threshold']:
+            dx = np.clip((achieved_goal[0]-finger_pos[0]),-1,1)
+            dy = np.clip((achieved_goal[1]-finger_pos[1]),-1,1)
+            dz = np.clip((achieved_goal[2]-finger_pos[2])+0.04,-1,1)
+            d_gripper = 0
+        elif distance(achieved_goal,finger_pos)<=sim_params['distance_threshold'] and distance(achieved_goal,desired_goal)>sim_params['distance_threshold']:
+            if step_time <10:
+                dx = np.clip((achieved_goal[0]-finger_pos[0]),-1,1)
+                dy = np.clip((achieved_goal[1]-finger_pos[1]),-1,1)
+                dz = np.clip((achieved_goal[2]-finger_pos[2])+0.04,-1,1)
+                d_gripper = -1
+            else:
+                dx = np.clip((desired_goal[0]-achieved_goal[0]),-1,1)
+                dy = np.clip((desired_goal[1]-achieved_goal[1]),-1,1)
+                dz = np.clip((desired_goal[2]-achieved_goal[2]),-1,1)
+                d_gripper = -1
+            step_time += 1
+        action = np.array([dx,dy,dz,d_gripper])
         # print('action:',action)
-        observation,reward, terminated, truncated, info = env.step(action)
+        obs_norm,reward, terminated, truncated, info,obs_dict = env.step(action)
         done = terminated or truncated
-        traj.store_step(action.copy(), observation.copy(), reward, done)
+        traj.store_step(action.copy(), obs_norm.copy(), reward, done)
     print(epoch)
     if info['is_success'] == True:
         savetime += 1
         print("This is " + str(savetime) + " savetime ")
         her_buffer.add_trajectory(traj)
-file_name = "ur5_reach_"+str(savetime)+"_expert_data.pkl"
+file_name = "ur5_pickplace_"+str(savetime)+"_expert_data.pkl"
 with open(file_name, 'wb') as file:
     pickle.dump(her_buffer, file)

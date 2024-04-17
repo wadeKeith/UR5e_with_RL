@@ -1,5 +1,5 @@
 import numpy as np
-from reach_env import Reach_UR5Env
+from pick_place_env import PickPlace_UR5Env
 import random
 import numpy as np
 from tqdm import tqdm
@@ -33,8 +33,8 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
-reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
-                               math.pi/2, 0]
+reset_arm_poses = [0, -math.pi/2, math.pi*4/9, -math.pi*4/9,
+                            -math.pi/2, 0]
 reset_gripper_range = [0, 0.085]
 visual_sensor_params = {
         'image_size': [128, 128],
@@ -55,14 +55,14 @@ robot_params = {
 sim_params = {"use_gui":False,
               'timestep':1/240,
               'control_type':'end',
-              'gripper_enable':False,
+              'gripper_enable':True,
               'is_train':True,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
-use_expert_data = True
+use_expert_data = False
 
-env = Reach_UR5Env(sim_params, robot_params,visual_sensor_params)
+env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
 state_dim = env.observation_space['observation'].shape[0]+env.observation_space['desired_goal'].shape[0]+env.observation_space['achieved_goal'].shape[0]
 action_dim = env.action_space.shape[0]
@@ -82,7 +82,6 @@ n_train = 5
 batch_size = 256
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
-target_entropy = -env.action_space.shape[0]
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
     "mps")
 
@@ -166,7 +165,7 @@ for i in range(100):
     torch.save(agent.actor.state_dict(), "./model/ddpg_her_ur5_%d.pkl" % i)
     sim_params['is_train'] = False
     # sim_params['use_gui'] = True
-    test_env  = Reach_UR5Env(sim_params, robot_params,visual_sensor_params)
+    test_env  = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
     evluation_policy(env=test_env, state_dim=agent.state_dim,
                      action_dim = agent.action_dim,
                      hidden_dim=agent.hidden_dim, 

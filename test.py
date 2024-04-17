@@ -30,8 +30,8 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
-reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
-                               math.pi/2, 0]
+reset_arm_poses = [0, -math.pi/2, math.pi*4/9, -math.pi*4/9,
+                            -math.pi/2, 0]
 reset_gripper_range = [0, 0.085]
 visual_sensor_params = {
         'image_size': [128, 128],
@@ -57,16 +57,17 @@ sim_params = {"use_gui":True,
               'distance_threshold':0.05,}
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
-obs,_ = env.reset()
-state, reward, terminated, truncated, info = env.step(np.array([1,1,1,-1]))
-state1, reward, terminated, truncated, info = env.step(np.array([0,0,0,-1]))
-state2, reward, terminated, truncated, info = env.step(np.array([0,0,0,-1]))
-state3, reward, terminated, truncated, info = env.step(np.array([0,0,0,-1]))
+obs,_,_ = env.reset()
+state, reward, terminated, truncated, info,_ = env.step(np.array([0,0,0,0]))
+# state1, reward, terminated, truncated, info = env.step(np.array([0,0,0,-1]))
+# state2, reward, terminated, truncated, info = env.step(np.array([0,0,0,-1]))
+# state3, reward, terminated, truncated, info = env.step(np.array([0,0,0,-1]))
 t = 1
-print(state)
-print(state1)
-print(state2)
-print(state3)
+# print(state)
+# print(state1)
+# print(state2)
+# print(state3)
+
 while True:
     env.step_simulation()
     t +=1

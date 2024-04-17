@@ -32,8 +32,8 @@ class PickPlace_UR5Env(object):
             set_debug_camera(self._pb, visual_sensor_params)
         # Initialize the goal range
         self.blockUid = -1
-        self.goal_range_low = np.array([0.6, -0.4, 0.04])
-        self.goal_range_high = np.array([1, 0.4, 0.4])
+        self.goal_range_low = np.array([0.7, -0.3, 0.04])
+        self.goal_range_high = np.array([0.8, 0.3, 0.1])
         # rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
         # depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
         # seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
@@ -50,8 +50,8 @@ class PickPlace_UR5Env(object):
             observation_bound_now = np.array([2, 2, 2])
             observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
         observation_space = spaces.Box(-observation_bound, observation_bound, dtype=np.float32)
-        achieved_space = spaces.Box(self.goal_range_low, self.goal_range_high, dtype=np.float32)
-        desired_space = spaces.Box(self.goal_range_low, self.goal_range_high, dtype=np.float32)
+        achieved_space = spaces.Box(np.array([0.7, -0.3, 0]), self.goal_range_high, dtype=np.float32)
+        desired_space = spaces.Box(np.array([0.7, -0.3, 0]), self.goal_range_high, dtype=np.float32)
         # self.observation_space = spaces.Dict({
         #     'rgb': rgb_obs_space,
         #     'depth': depth_obs_space,
@@ -119,13 +119,13 @@ class PickPlace_UR5Env(object):
                                         self.goal,
                                         self._pb.getQuaternionFromEuler([0,0,self.goal_ang]), useFixedBase=1)
         self._pb.setCollisionFilterPair(self.targetUid, self.blockUid, -1, -1, 0)
-        robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32).copy() 
-        robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32) 
+        robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy() 
+        robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy()
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
         obs_dict = self._get_obs(robot_obs)
         obs = self.dictobs2npobs(obs_dict, self.observation_space)
         info = {"is_success": bool(self.is_success(obs_dict["achieved_goal"], obs_dict['desired_goal']))}
-        return (obs, info)
+        return (obs, info,obs_dict)
 
     def step(self, action) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
         """
@@ -135,7 +135,7 @@ class PickPlace_UR5Env(object):
                          'joint' for joint position control
         """
         self.time +=1
-        robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32).copy() 
+        robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy() 
         assert self.control_type in ('joint', 'end')
         if self.gripper_enable:
             self.arm_gripper.move_ee(action[:-1], self.control_type)
@@ -143,7 +143,7 @@ class PickPlace_UR5Env(object):
         else:
             self.arm_gripper.move_ee(action, self.control_type)
         self.step_simulation()
-        robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32) 
+        robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy()
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
         obs_dict = self._get_obs(robot_obs)
         obs = self.dictobs2npobs(obs_dict, self.observation_space)
@@ -152,7 +152,7 @@ class PickPlace_UR5Env(object):
         truncated = self.compute_truncated(obs_dict['achieved_goal'], obs_dict['desired_goal'], info)
         reward  = float(self.compute_reward(obs_dict['achieved_goal'], obs_dict['desired_goal'], info))
         
-        return obs, reward, terminated, truncated, info
+        return obs, reward, terminated, truncated, info,obs_dict
 
     def compute_reward(self, achieved_goal, desired_goal, info: Dict[str, Any]) -> np.ndarray:
         d = distance(achieved_goal, desired_goal)
@@ -197,12 +197,12 @@ class PickPlace_UR5Env(object):
         self._pb.loadURDF(
             "./assets/environment_objects/table/table.urdf",
             [0.50, 0.00, -0.625],
-            [0.0, 0.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0, 1.0], globalScaling=1,
     )
 
     def _get_obs(self, robot_obs):
         achieved_goal,_ = self.get_achieved_goal()
-        desired_goal = self.goal.copy().astype(np.float32)
+        desired_goal = self.goal.copy()
         return {
             'observation': robot_obs,
             'achieved_goal': achieved_goal,

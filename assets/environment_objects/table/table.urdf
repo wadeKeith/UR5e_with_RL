@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <robot name="table.urdf">
 
-  <material name="WoodBrown">
+  <material name="framemat0">
     <color rgba="1.0 0.9 0.75 1.0"/>
   </material>
 
@@ -19,10 +19,10 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0.6"/>
       <geometry>
-				<!-- <mesh filename="table.obj" scale="1.5 1 0.05"/> -->
+				<mesh filename="table.obj" scale="1.5 1 0.05"/>
         <box size="1.5 1 0.05"/>
       </geometry>
-       <material name="WoodBrown"/>
+      <material name="framemat0"/>
     </visual>
 
     <collision>
@@ -35,37 +35,37 @@
 	  <visual>
       <origin rpy="0 0 0" xyz="-0.65 -0.4 0.29"/>
       <geometry>
-  	    <!-- <mesh filename="table.obj" scale="0.1 0.1 0.58"/> -->
+  	    <mesh filename="table.obj" scale="0.1 0.1 0.58"/>
         <box size="0.1 0.1 0.58"/>
       </geometry>
-      <material name="WoodBrown"/>
+      <material name="framemat0"/>
     </visual>
 
     <visual>
       <origin rpy="0 0 0" xyz="-0.65 0.4 0.29"/>
       <geometry>
-        <!-- <mesh filename="table.obj" scale="0.1 0.1 0.58"/> -->
+        <mesh filename="table.obj" scale="0.1 0.1 0.58"/>
         <box size="0.1 0.1 0.58"/>
       </geometry>
-      <material name="WoodBrown"/>
+      <material name="framemat0"/>
 	  </visual>
 
     <visual>
       <origin rpy="0 0 0" xyz="0.65 -0.4 0.29"/>
       <geometry>
-        <!-- <mesh filename="table.obj" scale="0.1 0.1 0.58"/> -->
+        <mesh filename="table.obj" scale="0.1 0.1 0.58"/>
         <box size="0.1 0.1 0.58"/>
       </geometry>
-      <material name="WoodBrown"/>
+      <material name="framemat0"/>
 	  </visual>
 
     <visual>
       <origin rpy="0 0 0" xyz="0.65 0.4 0.29"/>
       <geometry>
-        <!-- <mesh filename="table.obj" scale="0.1 0.1 0.58"/> -->
+        <mesh filename="table.obj" scale="0.1 0.1 0.58"/>
         <box size="0.1 0.1 0.58"/>
       </geometry>
-      <material name="WoodBrown"/>
+      <material name="framemat0"/>
     </visual>
 
   </link>

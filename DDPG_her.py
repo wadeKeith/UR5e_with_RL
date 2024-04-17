@@ -133,7 +133,7 @@ class DDPG:
         state = torch.tensor(state, dtype=torch.float).to(self.device)
         action = self.actor(state).detach().cpu().numpy()
         # 给动作添加噪声，增加探索
-        action = action + self.sigma * np.random.randn(self.action_dim)
+        action = np.clip(action + self.sigma * np.random.randn(self.action_dim),-1,1)
         return action
 
     def soft_update(self, net, target_net):
