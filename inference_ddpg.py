@@ -15,6 +15,7 @@ def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     model.eval()
     episode_return = 0
     state,_ = env.reset()
+    # env.goal = env.handle_pos+np([0.1,0.1,0.05])
     done = False
     while not done:
         state = torch.tensor(state, dtype=torch.float).to(device)
@@ -84,11 +85,12 @@ hidden_dim = 128
 sim_params['is_train'] = False
 sim_params['use_gui'] = True
 test_env  = UR5Env(sim_params, robot_params,visual_sensor_params)
+# test_env.goal = test_env.handle_pos+np([0.1,0.1,0.05])
 evluation_policy(env=test_env, state_dim=12,
                     action_dim = 3,
                     hidden_dim=hidden_dim, 
                     device=device,
-                    model_num=86)
+                    model_num=57)
 test_env.close()
 del test_env
 

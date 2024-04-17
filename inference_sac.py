@@ -1,15 +1,37 @@
 import numpy as np
 from env import UR5Env
+import random
+import numpy as np
+from tqdm import tqdm
+import torch
+import matplotlib.pyplot as plt
+from sac_her import SACContinuous, ReplayBuffer_Trajectory, Trajectory,Agent_test
 import math
-from stable_baselines3.common.env_checker import check_env
-import gymnasium as gym
-import os
+import pickle
 
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-from stable_baselines3 import SAC
-from stable_baselines3.common.env_util import make_vec_env
+def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
+    model = Agent_test(state_dim, hidden_dim, action_dim).to(device)
+    model.load_state_dict(torch.load("./model/sac_her_ur5_%d.pkl" % model_num))
+    model.eval()
+    episode_return = 0
+    state,_ = env.reset()
+    done = False
+    while not done:
+        state = torch.tensor(state, dtype=torch.float).to(device)
+        action = model(state).detach().cpu().numpy()
+        state, reward, terminated, truncated, info = env.step(action)
+        done = terminated or truncated
+        episode_return += reward
+    print("Test rawrd of the model %d is %.3f and info: is_success: %r, goal is %r" % (model_num, episode_return, info['is_success'],env.goal))
 
-seed = 1234
+
+
+seed = 3407
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
 reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
                                math.pi/2, 0]
 reset_gripper_range = [0, 0.085]
@@ -28,31 +50,45 @@ robot_params = {
     "reset_arm_poses": reset_arm_poses,
     "reset_gripper_range": reset_gripper_range,
 }
+# control type: joint, end
 sim_params = {"use_gui":False,
               'timestep':1/240,
-              'control_type':'joint',
+              'control_type':'end',
               'gripper_enable':False,
-              'is_train':True}
+              'is_train':True,
+              'distance_threshold':0.05,}
+# env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
 
-stats_path = os.path.join('./normalize_file/', "vec_normalize_sac.pkl")
-sim_params['use_gui'] = True
+
+env = UR5Env(sim_params, robot_params,visual_sensor_params)
+
+state_dim = env.observation_space['observation'].shape[0]+env.observation_space['desired_goal'].shape[0]+env.observation_space['achieved_goal'].shape[0]
+action_dim = env.action_space.shape[0]
+
+
+
+
+state_len = env.observation_space['observation'].shape[0]
+achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
+    "mps")
+
+
+
+
+hidden_dim = 128
+    
+
+
 sim_params['is_train'] = False
-env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
-vec_env = make_vec_env(UR5Env, n_envs=1, env_kwargs = env_kwargs_dict, seed=seed)
-vec_env = VecNormalize.load(stats_path, vec_env)
-#  do not update them at test time
-vec_env.training = False
-# reward normalization is not needed at test time
-vec_env.norm_reward = False
+sim_params['use_gui'] = True
+# test_env.goal = test_env.handle_pos+np([0.1,0.1,0.05])
+evluation_policy(env=env, state_dim=12,
+                    action_dim = 3,
+                    hidden_dim=hidden_dim, 
+                    device=device,
+                    model_num=57)
+env.close()
+del env
 
-# Load the agent
-model = SAC.load("./model/ur5_robotiq140_sac",env=vec_env)
-obs = vec_env.reset()
-dones=False
-while not dones:
-    action, _states = model.predict(obs,deterministic=True)
-    obs, rewards, dones, info = vec_env.step(action)
-    vec_env.render("human")
-vec_env.close()
-exit()
