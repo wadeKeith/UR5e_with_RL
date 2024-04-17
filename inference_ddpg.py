@@ -88,7 +88,7 @@ evluation_policy(env=test_env, state_dim=12,
                     action_dim = 3,
                     hidden_dim=hidden_dim, 
                     device=device,
-                    model_num=31)
+                    model_num=86)
 test_env.close()
 del test_env
 

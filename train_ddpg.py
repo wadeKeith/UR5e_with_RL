@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from DDPG_her import DDPG, ReplayBuffer_Trajectory, Trajectory,PolicyNet
 import math
 import pickle
+import rl_utils
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     model = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
@@ -68,10 +69,10 @@ action_dim = env.action_space.shape[0]
 
 
 
-actor_lr = 1e-3
-critic_lr = 1e-3
+actor_lr = 1e-4
+critic_lr = 1e-4
 num_episodes = 100
-hidden_dim = 128
+hidden_dim = 256
 gamma = 0.99999
 sigma = 0.5
 tau = 0.01  # 软更新参数
@@ -89,7 +90,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 
 
 if use_expert_data:
-    with open('ur5_reach_5000_expert_data.pkl', 'rb') as f:
+    with open('ur5_reach_10000_expert_data.pkl', 'rb') as f:
     # 读取并反序列化数据
         her_buffer = pickle.load(f)
     f.close()
@@ -185,4 +186,11 @@ plt.plot(episodes_list, return_list)
 plt.xlabel('Episodes')
 plt.ylabel('Returns')
 plt.title('DDPG with HER on {}'.format('UR5'))
+plt.show()
+
+mv_return = rl_utils.moving_average(return_list, 9)
+plt.plot(episodes_list, mv_return)
+plt.xlabel('Episodes')
+plt.ylabel('Returns')
+plt.title('DDPG on {}'.format('UR5'))
 plt.show()
