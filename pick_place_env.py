@@ -32,8 +32,8 @@ class PickPlace_UR5Env(object):
             set_debug_camera(self._pb, visual_sensor_params)
         # Initialize the goal range
         self.blockUid = -1
-        self.goal_range_low = np.array([0, -0.2, -0.175])
-        self.goal_range_high = np.array([0.4, 0.2, 0.175])
+        self.goal_range_low = np.array([0.6, -0.4, 0.04])
+        self.goal_range_high = np.array([1, 0.4, 0.4])
         # rgb_obs_space = spaces.Box(low=0, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1], 4), dtype=np.uint8)
         # depth_obs_space = spaces.Box(low=0, high=1, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.float32)
         # seg_obs_space = spaces.Box(low=-1, high=255, shape=(visual_sensor_params['image_size'][0], visual_sensor_params['image_size'][1]), dtype=np.int32)
@@ -50,10 +50,8 @@ class PickPlace_UR5Env(object):
             observation_bound_now = np.array([2, 2, 2])
             observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
         observation_space = spaces.Box(-observation_bound, observation_bound, dtype=np.float32)
-        achieved_goal_bound = np.array([2, 2, 2])
-        desired_goal_bound = np.array([2, 2, 2])
-        achieved_space = spaces.Box(-achieved_goal_bound, achieved_goal_bound, dtype=np.float32)
-        desired_space = spaces.Box(-desired_goal_bound, desired_goal_bound, dtype=np.float32)
+        achieved_space = spaces.Box(self.goal_range_low, self.goal_range_high, dtype=np.float32)
+        desired_space = spaces.Box(self.goal_range_low, self.goal_range_high, dtype=np.float32)
         # self.observation_space = spaces.Dict({
         #     'rgb': rgb_obs_space,
         #     'depth': depth_obs_space,
@@ -72,8 +70,6 @@ class PickPlace_UR5Env(object):
         self.action_space = spaces.Box(low=-1, high=1, shape=(n_action,),dtype=np.float32)
         self.time = None
         self.time_limitation = 200
-        self.goal = None
-        self.achieved_goal_initial = None
         self.n_sub_step = 50
 
         
@@ -85,29 +81,44 @@ class PickPlace_UR5Env(object):
         Reset the pose of the arm and sensor
         """
         self.time = 0
-        # block: x in (0.6, 1), y in (-0.48, 0.48), z = 0.04
-        # target: x in (0.6, 1), y in (-0.48, 0.48), z in (0.04, 0.4)
-        # self.blockUid = self._pb.loadURDF("./assets/urdfs/cube_small_pick.urdf", [0.6,-0.48,0.04],
-        #                               self._pb.getQuaternionFromEuler([0,0,0]))
-        # self.targetUid = self._pb.loadURDF("./assets/urdfs/cube_small_target_pick.urdf",
-        #                             [0.8,0,0.5],
-        #                             self._pb.getQuaternionFromEuler([0,0,0]), useFixedBase=1)
+        self.goal = None
+        self.goal_ang = None
+        self.achieved_goal_initial = None
+        self.achieved_goal_initial_ang = None
+        
         self.arm_gripper.reset(self.gripper_enable)
-        # self.reset_box()
+        # block: x in (0.6, 1), y in (-0.4, 0.4), z = 0.04
+        # target: x in (0.6, 1), y in (-0.4, 0.4), z in (0.04, 0.4)
         if self.is_train:
-            self.goal = self._sample_goal().copy()
-
-        # self._pb.addUserDebugPoints(pointPositions = [[0.48, -0.17256, 0.186809]], pointColorsRGB = [[255, 0, 0]], pointSize= 30, lifeTime= 0)
-            if self.vis == True:
-                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY*self.n_sub_step)
-                # self._pb.addUserDebugPoints(pointPositions = [np.array([0,-1,0.2])], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
+            initial_done = False
+            while not initial_done:
+                achieved_goal_initial,achieved_goal_initial_ang = self._sample_achieved_goal_initial()
+                goal,goal_ang = self._sample_goal()
+                initial_done = False if distance(achieved_goal_initial, goal) <= self.distance_threshold else True
+            self.achieved_goal_initial = achieved_goal_initial.copy()
+            self.achieved_goal_initial_ang = achieved_goal_initial_ang
+            self.goal = goal.copy()
+            self.goal_ang = goal_ang
         else:
-            self.goal = self.handle_pos
-            # self.reset_box()
-            # +np.array([0.1,-0.1,-0.1])
-            if self.vis == True:
-                # self._pb.removeAllUserDebugItems()
-                self._pb.addUserDebugPoints(pointPositions = [self.goal.copy()], pointColorsRGB = [[255, 0, 0]], pointSize= 20, lifeTime= self.time_limitation*self.SIMULATION_STEP_DELAY*self.n_sub_step)
+            self.achieved_goal_initial = np.array([0.8,0,0.04])
+            self.achieved_goal_initial_ang = 0
+            self.goal = np.array([0.6,0.2,0.1])
+            self.goal_ang = 0
+        if self.blockUid == -1:
+            self.blockUid = self._pb.loadURDF("./assets/urdfs/cube_small_pick.urdf", self.achieved_goal_initial,
+                                        self._pb.getQuaternionFromEuler([0,0,self.achieved_goal_initial_ang]))
+            self.targetUid = self._pb.loadURDF("./assets/urdfs/cube_small_target_pick.urdf",
+                                        self.goal,
+                                        self._pb.getQuaternionFromEuler([0,0,self.goal_ang]), useFixedBase=1)
+        else:
+            self._pb.removeBody(self.blockUid)
+            self._pb.removeBody(self.targetUid)
+            self.blockUid = self._pb.loadURDF("./assets/urdfs/cube_small_pick.urdf", self.achieved_goal_initial,
+                                        self._pb.getQuaternionFromEuler([0,0,self.achieved_goal_initial_ang]))
+            self.targetUid = self._pb.loadURDF("./assets/urdfs/cube_small_target_pick.urdf",
+                                        self.goal,
+                                        self._pb.getQuaternionFromEuler([0,0,self.goal_ang]), useFixedBase=1)
+        self._pb.setCollisionFilterPair(self.targetUid, self.blockUid, -1, -1, 0)
         robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32).copy() 
         robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).astype(np.float32) 
         robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
@@ -149,11 +160,11 @@ class PickPlace_UR5Env(object):
     
     def compute_terminated(self, achieved_goal, desired_goal, info) -> bool:
         d = distance(achieved_goal, desired_goal)
-        return d < self.distance_threshold
+        return d <= self.distance_threshold
     
     def compute_truncated(self, achieved_goal, desired_goal, info) -> bool:
         d = distance(achieved_goal, desired_goal)
-        if d < self.distance_threshold:
+        if d <= self.distance_threshold:
             return True
         else:
             if self.time >=self.time_limitation:
@@ -163,7 +174,7 @@ class PickPlace_UR5Env(object):
 
     def is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> np.ndarray:
         d = distance(achieved_goal, desired_goal)
-        return np.array(d < self.distance_threshold, dtype=bool)
+        return np.array(d <= self.distance_threshold, dtype=bool)
     
     
     def step_simulation(self):
@@ -188,12 +199,9 @@ class PickPlace_UR5Env(object):
             [0.50, 0.00, -0.625],
             [0.0, 0.0, 0.0, 1.0],
     )
-    def reset_box(self):
-        self._pb.resetJointState(self.boxID, 0, -1.1275702593849252e-18,0)
-        self._pb.resetJointState(self.boxID, 1, 0,0 )
 
     def _get_obs(self, robot_obs):
-        achieved_goal = self.get_achieved_goal().astype(np.float32)
+        achieved_goal,_ = self.get_achieved_goal()
         desired_goal = self.goal.copy().astype(np.float32)
         return {
             'observation': robot_obs,
@@ -208,23 +216,23 @@ class PickPlace_UR5Env(object):
 
 
     def get_achieved_goal(self) -> np.ndarray:
-        left_finger_pad_position = np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.left_finger_pad_id)[4],dtype=np.float64)
-        right_finger_pad_position = np.array(self._pb.getLinkState(self.arm_gripper.embodiment_id, self.arm_gripper.right_finger_pad_id)[4],dtype=np.float64)
-        # self._pb.addUserDebugPoints(pointPositions = [left_finger_pad_position], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
-        # self._pb.addUserDebugPoints(pointPositions = [right_finger_pad_position], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
-        achieved_goal_finger_pos = (left_finger_pad_position+right_finger_pad_position)/2
+        achieved_goal_pos,achieved_goal_orn_qua = self._pb.getBasePositionAndOrientation(self.blockUid)
+        achieved_goal_orn = self._pb.getEulerFromQuaternion(achieved_goal_orn_qua)
         # self._pb.addUserDebugPoints(pointPositions = [achieved_goal_finger_pos], pointColorsRGB = [[0, 0, 255]], pointSize= 20, lifeTime= 0)
-        return achieved_goal_finger_pos
+        return np.array(achieved_goal_pos), np.array(achieved_goal_orn)
     def _sample_goal(self) -> np.ndarray:
         """Sample a goal."""
-        goal = self.handle_pos  # z offset for the cube center
-        noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
+        goal = np.random.uniform(self.goal_range_low, self.goal_range_high)
+        goal_ang = np.random.uniform(-math.pi, math.pi)
         if np.random.random() < 0.3:
-            noise[2] = 0.0
-        goal += noise
-        return goal
+            goal[2] = self.goal_range_low[-1]
+        return goal,goal_ang
 
-    # def _sample_achieved_goal_initial(self):
+    def _sample_achieved_goal_initial(self):
+        achieved_goal_inital_xy = np.random.uniform(self.goal_range_low[:2], self.goal_range_high[:2])
+        achieved_goal_inital = np.concatenate([achieved_goal_inital_xy,np.array(self.goal_range_low[-1]).reshape(1,)])
+        achieved_goal_inital_ang = np.random.uniform(-math.pi, math.pi)
+        return achieved_goal_inital,achieved_goal_inital_ang
 
     def close(self):
         if self._pb.isConnected():

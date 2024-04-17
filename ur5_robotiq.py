@@ -10,7 +10,7 @@ class UR5Robotiq140:
         self._pb = pb
         self.arm_num_dofs = 6
         self.action_scale = 0.2
-        self.gripper_scale = 0.02
+        self.gripper_scale = 0.005
         if "tcp_link_name" in robot_params:
             self.tcp_link_name = robot_params["tcp_link_name"]
         else:
@@ -198,7 +198,7 @@ class UR5Robotiq140:
             # self._pb.addUserDebugPoints(pointPositions = [positions_arm], pointColorsRGB = [[0, 0, 255]], pointSize= 40, lifeTime= 0)
             if gripper_enable:
                 positions_gripper = []
-                for joint_id in self.control_joint_ids[6:]:
+                for joint_id in self.control_joint_ids[self.arm_num_dofs:]:
                     pos, _, _, _ = self._pb.getJointState(self.embodiment_id, joint_id)
                     positions_gripper.append(pos)
                 positions = list(positions_arm)+positions_gripper

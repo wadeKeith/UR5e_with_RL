@@ -24,6 +24,12 @@ def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
         episode_return += reward
     print("Test rawrd of the model %d is %.3f and info: is_success: %r, goal is %r" % (model_num, episode_return, info['is_success'],env.goal))
 
+seed = 3407
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
 reset_arm_poses = [math.pi, -math.pi/2, -math.pi*5/9, -math.pi*4/9,
                                math.pi/2, 0]
 reset_gripper_range = [0, 0.085]
@@ -46,14 +52,23 @@ robot_params = {
 sim_params = {"use_gui":True,
               'timestep':1/240,
               'control_type':'end',
-              'gripper_enable':False,
+              'gripper_enable':True,
               'is_train':True,
               'distance_threshold':0.05,}
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
 obs,_ = env.reset()
-state, reward, terminated, truncated, info = env.step(np.array([1,1,1]))
+state, reward, terminated, truncated, info = env.step(np.array([1,1,1,-1]))
+state1, reward, terminated, truncated, info = env.step(np.array([0,0,0,-1]))
+state2, reward, terminated, truncated, info = env.step(np.array([0,0,0,-1]))
+state3, reward, terminated, truncated, info = env.step(np.array([0,0,0,-1]))
 t = 1
+print(state)
+print(state1)
+print(state2)
+print(state3)
 while True:
     env.step_simulation()
     t +=1
+    # if t%10 == 9:
+    #     env.reset()
