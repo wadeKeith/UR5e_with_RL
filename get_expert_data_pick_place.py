@@ -44,7 +44,7 @@ sim_params = {"use_gui":False,
 
 expert_data_num = 10000
 buffer_size = 100000
-batch_size = 256
+batch_size = 512
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
@@ -72,7 +72,7 @@ for epoch in range(1000000):
         achieved_goal = obs_dict['achieved_goal']
         desired_goal = obs_dict['desired_goal']
         # ee_pos = obs[int(state_len/2):]
-        finger_pos = obs[int(state_len/2):int(state_len/2)+3]
+        finger_pos = obs[:3]
         # print('delta',(achieved_goal-finger_pos))
         if distance(achieved_goal,finger_pos)>sim_params['distance_threshold'] and distance(achieved_goal,desired_goal)>sim_params['distance_threshold']:
             dx = np.clip((achieved_goal[0]-finger_pos[0]),-1,1)

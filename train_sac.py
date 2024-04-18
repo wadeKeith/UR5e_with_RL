@@ -76,7 +76,7 @@ tau = 0.01  # 软更新参数
 buffer_size = 100000
 minimal_episodes = 5
 n_train = 5
-batch_size = 256
+batch_size = 512
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
 target_entropy = -env.action_space.shape[0]*batch_size
@@ -86,7 +86,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 
 
 if use_expert_data:
-    with open('ur5_pickplace_20000_expert_data.pkl', 'rb') as f:
+    with open('ur5_pickplace_10000_expert_data.pkl', 'rb') as f:
     # 读取并反序列化数据
         her_buffer = pickle.load(f)
     f.close()
