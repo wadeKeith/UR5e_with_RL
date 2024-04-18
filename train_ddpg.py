@@ -12,15 +12,15 @@ import rl_utils
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     model = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
-    model.load_state_dict(torch.load("./model/ddpg_her_ur5_%d.pkl" % model_num))
+    model.load_state_dict(torch.load("./model/ddpg_her_ur5_pick_%d.pkl" % model_num))
     model.eval()
     episode_return = 0
-    state,_ = env.reset()
+    state,_,_ = env.reset()
     done = False
     while not done:
         state = torch.tensor(state, dtype=torch.float).to(device)
         action = model(state).detach().cpu().numpy()
-        state, reward, terminated, truncated, info = env.step(action)
+        state, reward, terminated, truncated, info,_ = env.step(action)
         done = terminated or truncated
         episode_return += reward
     print("Test rawrd of the model %d is %.3f and info: is_success: %r, goal is %r" % (model_num, episode_return, info['is_success'],env.goal))
@@ -60,7 +60,7 @@ sim_params = {"use_gui":False,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
-use_expert_data = False
+use_expert_data = True
 
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
@@ -69,8 +69,8 @@ action_dim = env.action_space.shape[0]
 
 
 
-actor_lr = 1e-4
-critic_lr = 1e-4
+actor_lr = 1e-3
+critic_lr = 1e-3
 num_episodes = 100
 hidden_dim = 128
 gamma = 0.99999
@@ -89,7 +89,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 
 
 if use_expert_data:
-    with open('ur5_reach_10000_expert_data.pkl', 'rb') as f:
+    with open('ur5_pickplace_20000_expert_data.pkl', 'rb') as f:
     # 读取并反序列化数据
         her_buffer = pickle.load(f)
     f.close()
@@ -111,13 +111,13 @@ for i in range(100):
         success_count = 0
         for i_episode in range(num_episodes):
             episode_return = 0
-            state,_ = env.reset()
+            state,_,_ = env.reset()
             traj = Trajectory(state.copy())
             done = False
             while not done:
                 with torch.no_grad():
                     action = agent.take_action(state)
-                state, reward, terminated, truncated, info = env.step(action)
+                state, reward, terminated, truncated, info,_ = env.step(action)
                 done = terminated or truncated
                 episode_return += reward
                 traj.store_step(action.copy(), state.copy(), reward, done)
@@ -162,7 +162,7 @@ for i in range(100):
                     "is success count": success_count,
                 })
             pbar.update(1)
-    torch.save(agent.actor.state_dict(), "./model/ddpg_her_ur5_%d.pkl" % i)
+    torch.save(agent.actor.state_dict(), "./model/ddpg_her_ur5_pick_%d.pkl" % i)
     sim_params['is_train'] = False
     # sim_params['use_gui'] = True
     test_env  = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
@@ -178,7 +178,7 @@ for i in range(100):
 
 env.close()
 del env
-with open('ddpg_her_buffer.pkl', 'wb') as file:
+with open('ddpg_her_buffer_pickplace_all.pkl', 'wb') as file:
     pickle.dump(her_buffer, file)
 episodes_list = list(range(len(return_list)))
 plt.plot(episodes_list, return_list)

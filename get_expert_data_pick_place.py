@@ -35,7 +35,7 @@ robot_params = {
     "reset_gripper_range": reset_gripper_range,
 }
 # control type: joint, end
-sim_params = {"use_gui":True,
+sim_params = {"use_gui":False,
             'timestep':1/240,
             'control_type':'end',
             'gripper_enable':True,
@@ -57,7 +57,7 @@ her_buffer = ReplayBuffer_Trajectory(capacity= buffer_size,
                                     achieved_goal_len=achieved_goal_len,)
 
 savetime = 0
-for epoch in range(100000):
+for epoch in range(1000000):
     if savetime >= expert_data_num:
         break
     # reset the environment

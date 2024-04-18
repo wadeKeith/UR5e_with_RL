@@ -1,5 +1,5 @@
 import numpy as np
-from reach_env import Reach_UR5Env
+from pick_place_env import PickPlace_UR5Env
 import random
 import numpy as np
 from tqdm import tqdm
@@ -12,15 +12,15 @@ import rl_utils
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     model = Agent_test(state_dim, hidden_dim, action_dim).to(device)
-    model.load_state_dict(torch.load("./model/sac_her_ur5_%d.pkl" % model_num))
+    model.load_state_dict(torch.load("./model/sac_her_ur5_pick_%d.pkl" % model_num))
     model.eval()
     episode_return = 0
-    state,_ = env.reset()
+    state,_,_ = env.reset()
     done = False
     while not done:
         state = torch.tensor(state, dtype=torch.float).to(device)
         action = model(state).detach().cpu().numpy()
-        state, reward, terminated, truncated, info = env.step(action)
+        state, reward, terminated, truncated, info,_ = env.step(action)
         done = terminated or truncated
         episode_return += reward
     print("Test rawrd of the model %d is %.3f and info: is_success: %r, goal is %r" % (model_num, episode_return, info['is_success'],env.goal))
@@ -54,14 +54,14 @@ robot_params = {
 sim_params = {"use_gui":False,
               'timestep':1/240,
               'control_type':'end',
-              'gripper_enable':False,
+              'gripper_enable':True,
               'is_train':True,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
 use_expert_data = True
 
-env = Reach_UR5Env(sim_params, robot_params,visual_sensor_params)
+env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
 state_dim = env.observation_space['observation'].shape[0]+env.observation_space['desired_goal'].shape[0]+env.observation_space['achieved_goal'].shape[0]
 action_dim = env.action_space.shape[0]
@@ -86,7 +86,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 
 
 if use_expert_data:
-    with open('ur5_reach_10000_expert_data.pkl', 'rb') as f:
+    with open('ur5_pickplace_20000_expert_data.pkl', 'rb') as f:
     # 读取并反序列化数据
         her_buffer = pickle.load(f)
     f.close()
@@ -108,13 +108,13 @@ for i in range(100):
         success_count = 0
         for i_episode in range(num_episodes):
             episode_return = 0
-            state,_ = env.reset()
+            state,_,_ = env.reset()
             traj = Trajectory(state.copy())
             done = False
             while not done:
                 with torch.no_grad():
                     action = agent.take_action(state)
-                state, reward, terminated, truncated, info = env.step(action)
+                state, reward, terminated, truncated, info,_ = env.step(action)
                 # print(state)
                 done = terminated or truncated
                 episode_return += reward
@@ -160,10 +160,10 @@ for i in range(100):
                     "is success count": success_count,
                 })
             pbar.update(1)
-    torch.save(agent.actor.state_dict(), "./model/sac_her_ur5_%d.pkl" % i)
+    torch.save(agent.actor.state_dict(), "./model/sac_her_ur5_pick_%d.pkl" % i)
     sim_params['is_train'] = False
     # sim_params['use_gui'] = True
-    test_env  = Reach_UR5Env(sim_params, robot_params,visual_sensor_params)
+    test_env  = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
     evluation_policy(env=test_env, state_dim=agent.state_dim,
                      action_dim = agent.action_dim,
                      hidden_dim=agent.hidden_dim, 

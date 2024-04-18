@@ -100,9 +100,9 @@ class PickPlace_UR5Env(object):
             self.goal = goal.copy()
             self.goal_ang = goal_ang
         else:
-            self.achieved_goal_initial = np.array([0.8,0,0.04])
+            self.achieved_goal_initial = np.array([0.72,0.15,0.04])
             self.achieved_goal_initial_ang = 0
-            self.goal = np.array([0.6,0.2,0.1])
+            self.goal = np.array([0.78,-0.15,0.1])
             self.goal_ang = 0
         if self.blockUid == -1:
             self.blockUid = self._pb.loadURDF("./assets/urdfs/cube_small_pick.urdf", self.achieved_goal_initial,
