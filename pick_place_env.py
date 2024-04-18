@@ -44,8 +44,14 @@ class PickPlace_UR5Env(object):
             observation_bound_now = np.ones(shape=(self.arm_gripper.arm_num_dofs,))*3.14159265359
             observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
         elif self.control_type=='end' and self.gripper_enable:
-            observation_bound_now = np.concatenate([np.array([2, 2, 2]),np.ones(shape=(self.arm_gripper.num_control_dofs-self.arm_gripper.arm_num_dofs,))*3.14159265359])
-            observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
+            observation_bound = np.concatenate([np.ones(shape=(3,))*2,
+                                                np.ones(shape=(3,))*3.14159265359,
+                                                np.ones(shape=(3,))*2,
+                                                np.ones(shape=(3,))*3.2,
+                                                np.ones(shape=(self.arm_gripper.num_control_dofs-self.arm_gripper.arm_num_dofs,))*3.14159265359,
+                                                np.ones(shape=(3,))*3.14159265359,
+                                                np.ones(shape=(3,))*2])
+            # observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
         else:
             observation_bound_now = np.array([2, 2, 2])
             observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
@@ -119,9 +125,8 @@ class PickPlace_UR5Env(object):
                                         self.goal,
                                         self._pb.getQuaternionFromEuler([0,0,self.goal_ang]), useFixedBase=1)
         self._pb.setCollisionFilterPair(self.targetUid, self.blockUid, -1, -1, 0)
-        robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy() 
-        robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy()
-        robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
+        robot_obs = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy()
+        # robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
         obs_dict = self._get_obs(robot_obs)
         obs = self.dictobs2npobs(obs_dict, self.observation_space)
         info = {"is_success": bool(self.is_success(obs_dict["achieved_goal"], obs_dict['desired_goal']))}
@@ -135,7 +140,7 @@ class PickPlace_UR5Env(object):
                          'joint' for joint position control
         """
         self.time +=1
-        robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy() 
+        # robot_obs_old = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy() 
         assert self.control_type in ('joint', 'end')
         if self.gripper_enable:
             self.arm_gripper.move_ee(action[:-1], self.control_type)
@@ -143,8 +148,8 @@ class PickPlace_UR5Env(object):
         else:
             self.arm_gripper.move_ee(action, self.control_type)
         self.step_simulation()
-        robot_obs_new = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy()
-        robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
+        robot_obs = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy()
+        # robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
         obs_dict = self._get_obs(robot_obs)
         obs = self.dictobs2npobs(obs_dict, self.observation_space)
         info = {"is_success": bool(self.is_success(obs_dict['achieved_goal'], obs_dict['desired_goal']))}
@@ -201,10 +206,12 @@ class PickPlace_UR5Env(object):
     )
 
     def _get_obs(self, robot_obs):
-        achieved_goal,_ = self.get_achieved_goal()
+        achieved_goal,achieved_goal_orn = self.get_achieved_goal()
         desired_goal = self.goal.copy()
+        relative_pos = achieved_goal-robot_obs[:3].copy()
+        total_obs = np.concatenate([robot_obs.copy(),achieved_goal_orn.copy(),relative_pos.copy()])
         return {
-            'observation': robot_obs,
+            'observation': total_obs,
             'achieved_goal': achieved_goal,
             'desired_goal': desired_goal,
         }
