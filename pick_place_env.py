@@ -158,9 +158,9 @@ class PickPlace_UR5Env(object):
         
         return obs, reward, terminated, truncated, info,obs_dict
 
-    def compute_reward(self, achieved_goal, desired_goal, info: Dict[str, Any]) -> np.ndarray:
+    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: Dict[str, Any]) -> np.ndarray:
         d = distance(achieved_goal, desired_goal)
-        return -np.array(d > self.distance_threshold, dtype=np.float32)
+        return np.array(d <= self.distance_threshold, dtype=np.float32)
     
     def compute_terminated(self, achieved_goal, desired_goal, info) -> bool:
         d = distance(achieved_goal, desired_goal)
