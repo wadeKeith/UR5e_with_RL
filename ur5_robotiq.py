@@ -202,11 +202,11 @@ class UR5Robotiq140:
             # positions_arm = self._pb.getLinkState(self.embodiment_id, self.tcp_link_id)[4]
             left_finger_info = self._pb.getLinkState(self.embodiment_id, self.left_finger_pad_id,computeLinkVelocity=1)
             right_finger_info = self._pb.getLinkState(self.embodiment_id, self.right_finger_pad_id,computeLinkVelocity=1)
-            finger_pos = list((np.array(left_finger_info[4])+np.array(right_finger_info[4]))/2)
+            finger_pos = (np.array(left_finger_info[4])+np.array(right_finger_info[4]))/2
             ee_orn = list(self._pb.getEulerFromQuaternion(np.array(self._pb.getLinkState(self.embodiment_id, self.tcp_link_id)[5])))
             finger_linear_veocity = list((np.array(left_finger_info[6])+np.array(right_finger_info[6]))/2)
             finger_angular_veocity = list((np.array(left_finger_info[7])+np.array(right_finger_info[7]))/2)
-            arm_obs = finger_pos+ee_orn+finger_linear_veocity+finger_angular_veocity
+            arm_obs = ee_orn+finger_linear_veocity+finger_angular_veocity
             # self._pb.addUserDebugPoints(pointPositions = [positions_arm], pointColorsRGB = [[0, 0, 255]], pointSize= 40, lifeTime= 0)
             if gripper_enable:
                 positions_gripper = []
@@ -217,4 +217,4 @@ class UR5Robotiq140:
             else:
                 positions = arm_obs
         robot_obs = np.array(positions)
-        return robot_obs
+        return finger_pos, robot_obs

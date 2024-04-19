@@ -60,7 +60,7 @@ sim_params = {"use_gui":False,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
-use_expert_data = True
+use_expert_data = False
 
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
@@ -135,7 +135,7 @@ for i in range(100):
                 # her_buffer_len_ls = her_buffer.buffer[-1].length
                 # her_buffer_minlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
                 # her_ratio = (her_buffer_len_ls-1)/env.time_limitation
-                her_ratio = 0.7
+                her_ratio = 0.5
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict)

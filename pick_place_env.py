@@ -44,8 +44,7 @@ class PickPlace_UR5Env(object):
             observation_bound_now = np.ones(shape=(self.arm_gripper.arm_num_dofs,))*3.14159265359
             observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
         elif self.control_type=='end' and self.gripper_enable:
-            observation_bound = np.concatenate([np.ones(shape=(3,))*2,
-                                                np.ones(shape=(3,))*3.14159265359,
+            observation_bound = np.concatenate([np.ones(shape=(3,))*3.14159265359,
                                                 np.ones(shape=(3,))*2,
                                                 np.ones(shape=(3,))*3.2,
                                                 np.ones(shape=(self.arm_gripper.num_control_dofs-self.arm_gripper.arm_num_dofs,))*3.14159265359,
@@ -56,8 +55,8 @@ class PickPlace_UR5Env(object):
             observation_bound_now = np.array([2, 2, 2])
             observation_bound = np.concatenate([observation_bound_now,observation_bound_now])
         observation_space = spaces.Box(-observation_bound, observation_bound, dtype=np.float32)
-        achieved_space = spaces.Box(np.array([0.7, -0.3, 0]), self.goal_range_high, dtype=np.float32)
-        desired_space = spaces.Box(np.array([0.7, -0.3, 0]), self.goal_range_high, dtype=np.float32)
+        achieved_space = spaces.Box(np.array([-2, -2, -2, 0.7, -0.3, 0]), np.concatenate([np.array([2,2,2]), self.goal_range_high]), dtype=np.float32)
+        desired_space = spaces.Box(np.array([-2, -2, -2, 0.7, -0.3, 0]), np.concatenate([np.array([2,2,2]), self.goal_range_high]), dtype=np.float32)
         # self.observation_space = spaces.Dict({
         #     'rgb': rgb_obs_space,
         #     'depth': depth_obs_space,
@@ -125,9 +124,9 @@ class PickPlace_UR5Env(object):
                                         self.goal,
                                         self._pb.getQuaternionFromEuler([0,0,self.goal_ang]), useFixedBase=1)
         self._pb.setCollisionFilterPair(self.targetUid, self.blockUid, -1, -1, 0)
-        robot_obs = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy()
+        finger_pos, robot_obs = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable)
         # robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
-        obs_dict = self._get_obs(robot_obs)
+        obs_dict = self._get_obs(finger_pos,robot_obs)
         obs = self.dictobs2npobs(obs_dict, self.observation_space)
         info = {"is_success": bool(self.is_success(obs_dict["achieved_goal"], obs_dict['desired_goal']))}
         return (obs, info,obs_dict)
@@ -148,9 +147,9 @@ class PickPlace_UR5Env(object):
         else:
             self.arm_gripper.move_ee(action, self.control_type)
         self.step_simulation()
-        robot_obs = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable).copy()
+        finger_pos, robot_obs = self.arm_gripper.get_joint_obs(self.control_type,self.gripper_enable)
         # robot_obs = np.concatenate([robot_obs_old, robot_obs_new])
-        obs_dict = self._get_obs(robot_obs)
+        obs_dict = self._get_obs(finger_pos, robot_obs)
         obs = self.dictobs2npobs(obs_dict, self.observation_space)
         info = {"is_success": bool(self.is_success(obs_dict['achieved_goal'], obs_dict['desired_goal']))}
         terminated = self.compute_terminated(obs_dict['achieved_goal'], obs_dict['desired_goal'], info)
@@ -205,11 +204,12 @@ class PickPlace_UR5Env(object):
             [0.0, 0.0, 0.0, 1.0], globalScaling=1,
     )
 
-    def _get_obs(self, robot_obs):
-        achieved_goal,achieved_goal_orn = self.get_achieved_goal()
-        desired_goal = self.goal.copy()
-        relative_pos = achieved_goal-robot_obs[:3].copy()
+    def _get_obs(self, finger_pos, robot_obs):
+        achieved_goal_temp,achieved_goal_orn = self.get_achieved_goal()
+        desired_goal =np.concatenate([self.goal.copy(),self.goal.copy()]) 
+        relative_pos = achieved_goal_temp - finger_pos.copy()
         total_obs = np.concatenate([robot_obs.copy(),achieved_goal_orn.copy(),relative_pos.copy()])
+        achieved_goal = np.concatenate([finger_pos.copy(), achieved_goal_temp.copy()])
         return {
             'observation': total_obs,
             'achieved_goal': achieved_goal,
