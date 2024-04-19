@@ -89,7 +89,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 
 
 if use_expert_data:
-    with open('ur5_pickplace_10000_expert_data.pkl', 'rb') as f:
+    with open('ddpg_her_buffer_pickplace_all.pkl', 'rb') as f:
     # 读取并反序列化数据
         her_buffer = pickle.load(f)
     f.close()
@@ -103,6 +103,11 @@ else:
     
 agent = DDPG(state_dim, hidden_dim, action_dim,
                  actor_lr, critic_lr, sigma, tau, gamma, device)
+
+load_agent = False 
+agent_num = 58
+if load_agent:
+    agent.actor.load_state_dict(torch.load("./model/ddpg_her_ur5_pick_%d.pkl" % agent_num))
 
 return_list = []
 for i in range(100):
@@ -130,7 +135,7 @@ for i in range(100):
                 # her_buffer_len_ls = her_buffer.buffer[-1].length
                 # her_buffer_minlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
                 # her_ratio = (her_buffer_len_ls-1)/env.time_limitation
-                her_ratio = 0.5
+                her_ratio = 0.7
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict)
