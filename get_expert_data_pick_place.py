@@ -35,7 +35,7 @@ robot_params = {
     "reset_gripper_range": reset_gripper_range,
 }
 # control type: joint, end
-sim_params = {"use_gui":False,
+sim_params = {"use_gui":True,
             'timestep':1/240,
             'control_type':'end',
             'gripper_enable':True,
@@ -72,23 +72,24 @@ for epoch in range(1000000):
         achieved_goal = obs_dict['achieved_goal']
         desired_goal = obs_dict['desired_goal']
         # ee_pos = obs[int(state_len/2):]
-        finger_pos = obs[:3]
+        finger_pos = achieved_goal[:3]
+        block_pos = achieved_goal[3:]
         # print('delta',(achieved_goal-finger_pos))
-        if distance(achieved_goal,finger_pos)>sim_params['distance_threshold'] and distance(achieved_goal,desired_goal)>sim_params['distance_threshold']:
-            dx = np.clip((achieved_goal[0]-finger_pos[0]),-1,1)
-            dy = np.clip((achieved_goal[1]-finger_pos[1]),-1,1)
-            dz = np.clip((achieved_goal[2]-finger_pos[2])+0.04,-1,1)
+        if distance(block_pos, finger_pos)>sim_params['distance_threshold'] and distance(achieved_goal,desired_goal)>sim_params['distance_threshold']:
+            dx = np.clip((block_pos[0]-finger_pos[0]),-1,1)
+            dy = np.clip((block_pos[1]-finger_pos[1]),-1,1)
+            dz = np.clip((block_pos[2]-finger_pos[2])+0.04,-1,1)
             d_gripper = 0
-        elif distance(achieved_goal,finger_pos)<=sim_params['distance_threshold'] and distance(achieved_goal,desired_goal)>sim_params['distance_threshold']:
+        elif distance(block_pos,finger_pos)<=sim_params['distance_threshold'] and distance(achieved_goal,desired_goal)>sim_params['distance_threshold']:
             if step_time <10:
-                dx = np.clip((achieved_goal[0]-finger_pos[0]),-1,1)
-                dy = np.clip((achieved_goal[1]-finger_pos[1]),-1,1)
-                dz = np.clip((achieved_goal[2]-finger_pos[2])+0.04,-1,1)
+                dx = np.clip((block_pos[0]-finger_pos[0]),-1,1)
+                dy = np.clip((block_pos[1]-finger_pos[1]),-1,1)
+                dz = np.clip((block_pos[2]-finger_pos[2])+0.04,-1,1)
                 d_gripper = -1
             else:
-                dx = np.clip((desired_goal[0]-achieved_goal[0]),-1,1)
-                dy = np.clip((desired_goal[1]-achieved_goal[1]),-1,1)
-                dz = np.clip((desired_goal[2]-achieved_goal[2]),-1,1)
+                dx = np.clip((desired_goal[3]-block_pos[0]),-1,1)
+                dy = np.clip((desired_goal[4]-block_pos[1]),-1,1)
+                dz = np.clip((desired_goal[5]-block_pos[2]),-1,1)
                 d_gripper = -1
             step_time += 1
         action = np.array([dx,dy,dz,d_gripper])
