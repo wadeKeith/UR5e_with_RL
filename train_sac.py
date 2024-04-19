@@ -59,7 +59,7 @@ sim_params = {"use_gui":False,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
-use_expert_data = True
+use_expert_data = False
 
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
@@ -103,7 +103,7 @@ agent = SACContinuous(state_dim, hidden_dim, action_dim, actor_lr,
                  critic_lr, alpha_lr, target_entropy, tau, gamma,
                  device)
 
-load_agent = True 
+load_agent = False 
 agent_num = 58
 if load_agent:
     agent.load_state_dict(torch.load("./model/sac_her_ur5_pick_%d.pkl" % agent_num))
@@ -135,7 +135,7 @@ for i in range(100):
                 # her_buffer_len_ls = her_buffer.buffer[-1].length
                 # her_buffer_minlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
                 # her_ratio = (her_buffer_len_ls-1)/env.time_limitation
-                her_ratio = 0.7
+                her_ratio = 0.5
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict)
@@ -183,7 +183,7 @@ for i in range(100):
 
 env.close()
 del env
-with open('sac_her_buffer.pkl', 'wb') as file:
+with open('sac_her_buffer_pickplace_all.pkl', 'wb') as file:
     pickle.dump(her_buffer, file)
 episodes_list = list(range(len(return_list)))
 plt.plot(episodes_list, return_list)
