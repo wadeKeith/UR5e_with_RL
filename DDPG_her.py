@@ -60,7 +60,7 @@ class ReplayBuffer_Trajectory:
                 step_goal = np.random.randint(step_state + 1, traj.length + 1)
                 goal = traj.states[step_goal][self.state_len:self.state_len+self.achieved_goal_len].copy()   # 使用HER算法的future方案设置目标
                 dis = distance(next_state[self.state_len:self.state_len+self.achieved_goal_len], goal)
-                reward = np.array(0,dtype=np.float32) if dis > self.dis_threshold else np.array(1.0,dtype = np.float32)
+                reward = 0 if dis > self.dis_threshold else 1
                 done = False if dis > self.dis_threshold else True
                 state = np.hstack((state[:self.state_len+self.achieved_goal_len], goal)).copy() 
                 next_state = np.hstack((next_state[:self.state_len+self.achieved_goal_len], goal)).copy() 

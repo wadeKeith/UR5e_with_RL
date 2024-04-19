@@ -35,7 +35,7 @@ robot_params = {
     "reset_gripper_range": reset_gripper_range,
 }
 # control type: joint, end
-sim_params = {"use_gui":True,
+sim_params = {"use_gui":False,
             'timestep':1/240,
             'control_type':'end',
             'gripper_enable':True,
