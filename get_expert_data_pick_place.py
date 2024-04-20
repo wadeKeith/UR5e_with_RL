@@ -2,7 +2,7 @@ import numpy as np
 from pick_place_env import PickPlace_UR5Env
 import random
 import numpy as np
-from sac_her import SACContinuous, ReplayBuffer_Trajectory, Trajectory,Agent_test
+from WGCSL import  ReplayBuffer_Trajectory, Trajectory
 import math
 import torch
 import pickle
@@ -35,14 +35,14 @@ robot_params = {
     "reset_gripper_range": reset_gripper_range,
 }
 # control type: joint, end
-sim_params = {"use_gui":True,
+sim_params = {"use_gui":False,
             'timestep':1/240,
             'control_type':'end',
             'gripper_enable':True,
             'is_train':True,
             'distance_threshold':0.05,}
 
-expert_data_num = 10000
+expert_data_num = 40000
 buffer_size = 100000
 batch_size = 512
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
@@ -101,6 +101,6 @@ for epoch in range(1000000):
         savetime += 1
         print("This is " + str(savetime) + " savetime ")
         her_buffer.add_trajectory(traj)
-file_name = "ur5_pickplace_"+str(savetime)+"_expert_data.pkl"
+file_name = "ur5_pickplace_"+str(savetime)+"_expert_data_WGCSL.pkl"
 with open(file_name, 'wb') as file:
     pickle.dump(her_buffer, file)

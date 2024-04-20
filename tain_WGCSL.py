@@ -9,6 +9,7 @@ from WGCSL import WGCSL, ReplayBuffer_Trajectory, Trajectory,PolicyNet
 import math
 import pickle
 import rl_utils
+import collections
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     model = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
@@ -74,12 +75,12 @@ critic_lr = 1e-3
 num_episodes = 100
 hidden_dim = 128
 gamma = 0.99999
-sigma = 0.5
-tau = 0.01  # 软更新参数
+lmbda = 0.95
 buffer_size = 100000
 minimal_episodes = 5
 n_train = 5
 batch_size = 512
+B_capacity = batch_size*n_train*num_episodes*100*2
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
@@ -102,12 +103,14 @@ else:
                                         achieved_goal_len=achieved_goal_len,)
     
 agent = WGCSL(state_dim, hidden_dim, action_dim,
-                 actor_lr, critic_lr, sigma, tau, gamma, device)
+                 actor_lr, critic_lr, lmbda, gamma, device)
 
 load_agent = False 
 agent_num = 52
 if load_agent:
     agent.actor.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_%d.pkl" % agent_num))
+B_buffer = collections.deque(maxlen=B_capacity)
+
 
 return_list = []
 for i in range(100):
@@ -138,7 +141,7 @@ for i in range(100):
                 her_ratio = 1
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
-                    agent.update(transition_dict)
+                    agent.update(transition_dict,B_buffer)
                 pbar.set_postfix({
                     'goal':
                     '%r' % (env.goal),
