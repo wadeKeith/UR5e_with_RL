@@ -62,7 +62,7 @@ sim_params = {"use_gui":False,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
-use_expert_data = False
+use_expert_data = True
 
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
@@ -80,8 +80,11 @@ lmbda = 0.95
 buffer_size = 100000
 minimal_episodes = 5
 n_train = 5
+baw_delta = 0.05
+geaw_M = 10
+epochs = 100
 batch_size = 512
-B_capacity = batch_size*n_train*num_episodes*100*2
+B_capacity = n_train*num_episodes*epochs*2
 state_len = env.observation_space['observation'].shape[0]
 achieved_goal_len = env.observation_space['achieved_goal'].shape[0]
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
@@ -91,7 +94,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 
 
 if use_expert_data:
-    with open('ur5_pickplace_10000_expert_data.pkl', 'rb') as f:
+    with open('ur5_pickplace_10000_expert_data_WGCSL.pkl', 'rb') as f:
     # 读取并反序列化数据
         her_buffer = pickle.load(f)
     f.close()
@@ -104,7 +107,7 @@ else:
                                         achieved_goal_len=achieved_goal_len,)
     
 agent = WGCSL(state_dim, hidden_dim, action_dim,
-                 actor_lr, critic_lr, lmbda, gamma, device)
+                 actor_lr, critic_lr, lmbda, gamma, baw_delta, geaw_M, epochs, device)
 
 load_agent = False 
 agent_num = 52

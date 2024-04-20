@@ -135,7 +135,7 @@ class ValueNet(torch.nn.Module):
 class WGCSL:
     ''' DDPG算法 '''
     def __init__(self, state_dim, hidden_dim, action_dim,
-                 actor_lr, critic_lr, lmbda, gamma, device):
+                 actor_lr, critic_lr, lmbda, gamma, baw_delta, geaw_M, epochs, device):
         self.action_dim = action_dim
         self.actor = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
         self.critic = ValueNet(state_dim, hidden_dim).to(device)
@@ -150,9 +150,9 @@ class WGCSL:
         self.state_dim = state_dim
         self.hidden_dim = hidden_dim
         # self.percentile_num = 0
-        self.baw_delta = 0.05
-        self.geaw_M = 10
-        self.epochs = 100
+        self.baw_delta = baw_delta
+        self.geaw_M = geaw_M
+        self.epochs = epochs
         self.lr_a = actor_lr
         self.lr_c = critic_lr
 
