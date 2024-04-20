@@ -198,7 +198,7 @@ class WGCSL:
         self.critic_optimizer.step()
         self.soft_update(self.critic, self.target_critic)  # 软更新价值网络
 
-        mu_estimated,_ = self.actor(states)
+        mu_estimated,_ = self.actor(next_states)
         advantage = self.critic(states, actions) - self.critic(states, mu_estimated)
         B_buffer.append(advantage.detach().cpu().numpy().copy())
 
