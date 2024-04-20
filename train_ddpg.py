@@ -105,7 +105,7 @@ agent = DDPG(state_dim, hidden_dim, action_dim,
                  actor_lr, critic_lr, sigma, tau, gamma, device)
 
 load_agent = False 
-agent_num = 58
+agent_num = 52
 if load_agent:
     agent.actor.load_state_dict(torch.load("./model/ddpg_her_ur5_pick_%d.pkl" % agent_num))
 

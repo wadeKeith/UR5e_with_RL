@@ -1,5 +1,5 @@
 import numpy as np
-from reach_env import Reach_UR5Env
+from pick_place_env import PickPlace_UR5Env
 import random
 import numpy as np
 from tqdm import tqdm
@@ -11,16 +11,16 @@ import pickle
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     model = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
-    model.load_state_dict(torch.load("./model/ddpg_her_ur5_%d.pkl" % model_num))
+    model.load_state_dict(torch.load("./model/ddpg_her_ur5_pick_%d.pkl" % model_num))
     model.eval()
     episode_return = 0
-    state,_ = env.reset()
+    state,_,_ = env.reset()
     # env.goal = env.handle_pos+np([0.1,0.1,0.05])
     done = False
     while not done:
         state = torch.tensor(state, dtype=torch.float).to(device)
         action = model(state).detach().cpu().numpy()
-        state, reward, terminated, truncated, info = env.step(action)
+        state, reward, terminated, truncated, info,_ = env.step(action)
         done = terminated or truncated
         episode_return += reward
     print("Test rawrd of the model %d is %.3f and info: is_success: %r, goal is %r" % (model_num, episode_return, info['is_success'],env.goal))
@@ -55,14 +55,14 @@ robot_params = {
 sim_params = {"use_gui":True,
               'timestep':1/240,
               'control_type':'end',
-              'gripper_enable':False,
+              'gripper_enable':True,
               'is_train':False,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
 
 
-env = Reach_UR5Env(sim_params, robot_params,visual_sensor_params)
+env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
 state_dim = env.observation_space['observation'].shape[0]+env.observation_space['desired_goal'].shape[0]+env.observation_space['achieved_goal'].shape[0]
 action_dim = env.action_space.shape[0]
@@ -81,11 +81,11 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 hidden_dim = 128
     
 
-evluation_policy(env=env, state_dim=12,
-                    action_dim = 3,
+evluation_policy(env=env, state_dim=30,
+                    action_dim = 4,
                     hidden_dim=hidden_dim, 
                     device=device,
-                    model_num=65)
+                    model_num=52)
 env.close()
 del env
 
