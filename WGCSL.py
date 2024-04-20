@@ -55,7 +55,8 @@ class ReplayBuffer_Trajectory:
                      actions=[],
                      next_states=[],
                      rewards=[],
-                     dones=[])
+                     dones=[],
+                     gamma_pow=[])
         for _ in range(self.batch_size):
             traj = random.sample(self.buffer, 1)[0]
             step_state = np.random.randint(traj.length)
@@ -64,6 +65,7 @@ class ReplayBuffer_Trajectory:
             action = traj.actions[step_state]
             reward = traj.rewards[step_state]
             done = traj.dones[step_state]
+            gamma_pow = 0
 
 
             if self.use_her and sum(traj.rewards) < 1:
@@ -74,12 +76,14 @@ class ReplayBuffer_Trajectory:
                 done = False if dis > self.dis_threshold else True
                 state = np.hstack((state[:self.state_len+self.achieved_goal_len], goal)).copy() 
                 next_state = np.hstack((next_state[:self.state_len+self.achieved_goal_len], goal)).copy() 
+                gamma_pow = step_goal-step_state
 
             batch['states'].append(state.copy())
             batch['next_states'].append(next_state.copy())
             batch['actions'].append(action.copy())
             batch['rewards'].append(reward)
             batch['dones'].append(done)
+            batch['gamma_pow'].append(gamma_pow)
 
         batch['states'] = np.array(batch['states'])
         batch['next_states'] = np.array(batch['next_states'])
@@ -145,7 +149,7 @@ class WGCSL:
         self.device = device
         self.state_dim = state_dim
         self.hidden_dim = hidden_dim
-        self.percentile_num = 0
+        # self.percentile_num = 0
         self.baw_delta = 0.05
         self.geaw_M = 10
         self.epochs = 100
@@ -177,19 +181,20 @@ class WGCSL:
                                    dtype=torch.float).to(self.device)
         dones = torch.tensor(transition_dict['dones'],
                              dtype=torch.float).view(-1, 1).to(self.device)
+        gamma_pow = torch.tensor(transition_dict['gamma_pow'],
+                             dtype=torch.float).view(-1, 1).to(self.device)
 
         # action_next,_ = self.actor(next_states)
         # next_q_values = self.target_critic(next_states, action_next)
         # q_targets = rewards + self.gamma * next_q_values * (1 - dones)
         td_target = rewards + self.gamma * self.critic(next_states) * (1 - dones)
-        td_delta = td_target - self.critic(states)
         # MSE损失函数
         critic_loss = torch.mean(
             F.mse_loss(self.critic(states), td_target))
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
-
+        td_delta = rewards + self.gamma * self.critic(next_states) * (1 - dones) - self.critic(states)
         advantage = compute_advantage(self.gamma, self.lmbda, td_delta.cpu()).to(self.device)
         B_buffer.append(advantage.detach().cpu().numpy().copy())
         all_advantage_list = []
@@ -197,17 +202,18 @@ class WGCSL:
             all_advantage_list += list(B_buffer[i].flatten())
         all_advantage_np = np.array(all_advantage_list)
         A_threshold = np.percentile(all_advantage_np,self.percentile_num)
-        baw = self.BAW_compute(advantage.detach().cpu().numpy().copy(), A_threshold)
+        baw = self.BAW_compute(advantage.detach().cpu().numpy().copy(), A_threshold).to(self.device)
         geaw = torch.clip(torch.exp(advantage),0,self.geaw_M)
+        mu, sigma = self.actor(states)
+        action_dis = torch.distributions.Normal(mu, sigma)
+        log_prob = action_dis.log_prob(actions).mean(dim=1, keepdim=True)
+        gamma_weigh = torch.tensor(self.gamma).pow(gamma_pow).to(self.device)
+        actor_loss = -torch.mean(gamma_weigh*baw * geaw * log_prob)
 
         # 策略网络就是为了使Q值最大化
-        actor_loss = -torch.mean(self.critic(states, self.actor(states)))
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
-
-        self.soft_update(self.actor, self.target_actor)  # 软更新策略网络
-        self.soft_update(self.critic, self.target_critic)  # 软更新价值网络
 
     def lr_decay(self, total_steps):
         lr_a_now = self.lr_a * (1 - total_steps / self.epochs)
@@ -224,3 +230,5 @@ class WGCSL:
             else:
                 baw[i] = self.baw_delta
         return torch.tensor(baw)
+    def percentile_num_update(self,total_step):
+        self.percentile_num = 80/(self.epochs-1)*total_step

@@ -13,14 +13,15 @@ import collections
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     model = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
-    model.load_state_dict(torch.load("./model/ddpg_her_ur5_pick_%d.pkl" % model_num))
+    model.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_%d.pkl" % model_num))
     model.eval()
     episode_return = 0
     state,_,_ = env.reset()
     done = False
     while not done:
         state = torch.tensor(state, dtype=torch.float).to(device)
-        action = model(state).detach().cpu().numpy()
+        mu,_ = model(state)
+        action = mu.detach().cpu().numpy()
         state, reward, terminated, truncated, info,_ = env.step(action)
         done = terminated or truncated
         episode_return += reward
@@ -115,6 +116,7 @@ B_buffer = collections.deque(maxlen=B_capacity)
 return_list = []
 for i in range(100):
     agent.lr_decay(i)
+    agent.percentile_num_update(i)
     with tqdm(total=int(num_episodes), desc='Iteration %d' % i) as pbar:
         success_count = 0
         for i_episode in range(num_episodes):
@@ -143,9 +145,10 @@ for i in range(100):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict,B_buffer)
                 pbar.set_postfix({
-                    'goal':
-                    '%r' % (env.goal),
+                    # 'goal':
+                    # '%r' % (env.goal),
                     # 'her_bf_min_len': min(her_buffer_minlen_ls),
+                    'percentile_num': '%.3f' % agent.percentile_num,
                     'her_size':her_buffer.size(),
                     'episode':
                         '%d' % (num_episodes* i + i_episode + 1),
@@ -161,6 +164,7 @@ for i in range(100):
                 pbar.set_postfix({
                     'goal':
                     '%r' % (env.goal),
+                    'percentile_num': '%.3f' % agent.percentile_num,
                     'episode':
                         '%d' % (num_episodes* i + i_episode + 1),
                     'return':
@@ -170,7 +174,7 @@ for i in range(100):
                     "is success count": success_count,
                 })
             pbar.update(1)
-    torch.save(agent.actor.state_dict(), "./model/ddpg_her_ur5_pick_%d.pkl" % i)
+    torch.save(agent.actor.state_dict(), "./model/wgcsl_her_ur5_pick_%d.pkl" % i)
     sim_params['is_train'] = False
     # sim_params['use_gui'] = True
     test_env  = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
@@ -186,18 +190,18 @@ for i in range(100):
 
 env.close()
 del env
-with open('ddpg_her_buffer_pickplace_all.pkl', 'wb') as file:
+with open('wgcsl_her_buffer_pickplace_all.pkl', 'wb') as file:
     pickle.dump(her_buffer, file)
 episodes_list = list(range(len(return_list)))
 plt.plot(episodes_list, return_list)
 plt.xlabel('Episodes')
 plt.ylabel('Returns')
-plt.title('DDPG with HER on {}'.format('UR5'))
+plt.title('WGCSL with HER on {}'.format('UR5'))
 plt.show()
 
 mv_return = rl_utils.moving_average(return_list, 9)
 plt.plot(episodes_list, mv_return)
 plt.xlabel('Episodes')
 plt.ylabel('Returns')
-plt.title('DDPG on {}'.format('UR5'))
+plt.title('WGCSL on {}'.format('UR5'))
 plt.show()
