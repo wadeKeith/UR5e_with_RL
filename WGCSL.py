@@ -203,7 +203,7 @@ class WGCSL:
         action_dis = torch.distributions.Normal(mu, sigma)
         log_prob = action_dis.log_prob(actions)
         gamma_weigh = torch.tensor(self.gamma).pow(gamma_pow).to(self.device)
-        actor_loss = -torch.mean(gamma_weigh*baw * geaw * log_prob)
+        actor_loss = -torch.mean(gamma_weigh * baw * geaw * log_prob)
 
         # 策略网络就是为了使Q值最大化
         self.actor_optimizer.zero_grad()
