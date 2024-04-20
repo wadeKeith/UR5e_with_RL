@@ -42,7 +42,7 @@ sim_params = {"use_gui":False,
             'is_train':True,
             'distance_threshold':0.05,}
 
-expert_data_num = 40000
+expert_data_num = 10000
 buffer_size = 100000
 batch_size = 512
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)

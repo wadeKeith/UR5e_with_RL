@@ -16,7 +16,7 @@ def compute_advantage(gamma, lmbda, td_delta):
         advantage = gamma * lmbda * advantage + delta
         advantage_list.append(advantage)
     advantage_list.reverse()
-    return torch.tensor(advantage_list, dtype=torch.float)
+    return torch.tensor(np.array(advantage_list), dtype=torch.float)
 
 class Trajectory:
     ''' 用来记录一条完整轨迹 '''
@@ -184,9 +184,6 @@ class WGCSL:
         gamma_pow = torch.tensor(transition_dict['gamma_pow'],
                              dtype=torch.float).view(-1, 1).to(self.device)
 
-        # action_next,_ = self.actor(next_states)
-        # next_q_values = self.target_critic(next_states, action_next)
-        # q_targets = rewards + self.gamma * next_q_values * (1 - dones)
         td_target = rewards + self.gamma * self.critic(next_states) * (1 - dones)
         # MSE损失函数
         critic_loss = torch.mean(

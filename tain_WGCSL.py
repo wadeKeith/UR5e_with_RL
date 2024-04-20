@@ -147,10 +147,12 @@ for i in range(100):
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict,B_buffer)
+                # B_buffer_len = [len(B_buffer[i]) for i in range(len(B_buffer))]
                 pbar.set_postfix({
                     # 'goal':
                     # '%r' % (env.goal),
                     # 'her_bf_min_len': min(her_buffer_minlen_ls),
+                    # 'B_buffer_len':sum(B_buffer_len),
                     'percentile_num': '%.3f' % agent.percentile_num,
                     'her_size':her_buffer.size(),
                     'episode':
