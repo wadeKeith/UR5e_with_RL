@@ -194,10 +194,8 @@ class WGCSL:
         td_delta = rewards + self.gamma * self.critic(next_states) * (1 - dones) - self.critic(states)
         advantage = compute_advantage(self.gamma, self.lmbda, td_delta.cpu()).to(self.device)
         B_buffer.append(advantage.detach().cpu().numpy().copy())
-        all_advantage_list = []
-        for i in range(len(B_buffer)):
-            all_advantage_list += list(B_buffer[i].flatten())
-        all_advantage_np = np.array(all_advantage_list)
+
+        all_advantage_np = np.array(B_buffer).reshape(-1)
         A_threshold = np.percentile(all_advantage_np,self.percentile_num)
         baw = self.BAW_compute(advantage.detach().cpu().numpy().copy(), A_threshold).to(self.device)
         geaw = torch.clip(torch.exp(advantage),0,self.geaw_M)
@@ -220,12 +218,8 @@ class WGCSL:
         for p in self.critic_optimizer.param_groups:
             p["lr"] = lr_c_now
     def BAW_compute(self, advantage:np.ndarray, A_threshold):
-        baw = np.zeros_like(advantage)
-        for i in range(advantage.shape[0]):
-            if advantage[i] >=A_threshold:
-                baw[i] = 1
-            else:
-                baw[i] = self.baw_delta
+        baw_temp = np.array(advantage>=A_threshold, dtype=np.float32)
+        baw = np.where(baw_temp==0,self.baw_delta, baw_temp)
         return torch.tensor(baw)
     def percentile_num_update(self,total_step):
         self.percentile_num = 80/(self.epochs-1)*total_step
