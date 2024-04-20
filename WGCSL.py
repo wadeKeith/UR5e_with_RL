@@ -68,11 +68,11 @@ class ReplayBuffer_Trajectory:
             gamma_pow = 0
 
 
-            if self.use_her and sum(traj.rewards) < 1:
+            if self.use_her and traj.rewards[-1] != 0:
                 step_goal = np.random.randint(step_state + 1, traj.length + 1)
                 goal = traj.states[step_goal][self.state_len:self.state_len+self.achieved_goal_len].copy()   # 使用HER算法的future方案设置目标
                 dis = distance(next_state[self.state_len:self.state_len+self.achieved_goal_len], goal)
-                reward = 0 if dis > self.dis_threshold else 1
+                reward = -1.0 if dis > self.dis_threshold else 0
                 done = False if dis > self.dis_threshold else True
                 state = np.hstack((state[:self.state_len+self.achieved_goal_len], goal)).copy() 
                 next_state = np.hstack((next_state[:self.state_len+self.achieved_goal_len], goal)).copy() 
@@ -206,7 +206,7 @@ class WGCSL:
         geaw = torch.clip(torch.exp(advantage),0,self.geaw_M)
         mu, sigma = self.actor(states)
         action_dis = torch.distributions.Normal(mu, sigma)
-        log_prob = action_dis.log_prob(actions).mean(dim=1, keepdim=True)
+        log_prob = action_dis.log_prob(actions)
         gamma_weigh = torch.tensor(self.gamma).pow(gamma_pow).to(self.device)
         actor_loss = -torch.mean(gamma_weigh*baw * geaw * log_prob)
 
