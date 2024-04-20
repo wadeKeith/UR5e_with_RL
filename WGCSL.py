@@ -198,15 +198,15 @@ class WGCSL:
         self.critic_optimizer.step()
         self.soft_update(self.critic, self.target_critic)  # 软更新价值网络
 
-        mu_actor_updata,_ = self.actor(states)
-        advantage = self.critic(states, actions) - self.critic(states, mu_actor_updata)
+        mu_estimated,_ = self.actor(states)
+        advantage = self.critic(states, actions) - self.critic(states, mu_estimated)
         B_buffer.append(advantage.detach().cpu().numpy().copy())
 
         all_advantage_np = np.array(B_buffer).reshape(-1)
         A_threshold = np.percentile(all_advantage_np,self.percentile_num)
         baw = self.BAW_compute(advantage.detach().cpu().numpy().copy(), A_threshold).to(self.device)
         geaw = torch.clip(torch.exp(advantage),0,self.geaw_M)
-        # mu_actor_updata, _ = self.actor(states)
+        mu_actor_updata, _ = self.actor(states)
         # action_dis = torch.distributions.Normal(mu, sigma)
         # log_prob = action_dis.log_prob(actions)
         gamma_weigh = torch.tensor(self.gamma).pow(gamma_pow).to(self.device)

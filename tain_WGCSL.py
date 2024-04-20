@@ -62,7 +62,7 @@ sim_params = {"use_gui":False,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
-use_expert_data = False
+use_expert_data = True
 
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
