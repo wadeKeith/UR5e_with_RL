@@ -192,7 +192,7 @@ class WGCSL:
         q_targets = rewards + self.gamma * self.target_critic(next_states,mu_q_update) * (1 - dones)
         # MSE损失函数
         critic_loss = torch.mean(
-            F.mse_loss(self.critic(states, actions), q_targets))
+            (self.critic(states, actions)-q_targets).pow(2))
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
@@ -205,11 +205,11 @@ class WGCSL:
         A_threshold = np.percentile(all_advantage_np,self.percentile_num)
         baw = self.BAW_compute(advantage.detach().cpu().numpy().copy(), A_threshold).to(self.device)
         geaw = torch.clip(torch.exp(advantage),0,self.geaw_M)
-        mu, sigma = self.actor(states)
-        action_dis = torch.distributions.Normal(mu, sigma)
-        log_prob = action_dis.log_prob(actions)
+        mu_actor_updata, _ = self.actor(states)
+        # action_dis = torch.distributions.Normal(mu, sigma)
+        # log_prob = action_dis.log_prob(actions)
         gamma_weigh = torch.tensor(self.gamma).pow(gamma_pow).to(self.device)
-        actor_loss = -torch.mean(gamma_weigh * baw * geaw * log_prob)
+        actor_loss = torch.mean(gamma_weigh * baw * geaw * (mu_actor_updata - actions).pow(2))
 
         # 策略网络就是为了使Q值最大化
         self.actor_optimizer.zero_grad()
