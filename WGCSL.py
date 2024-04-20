@@ -120,25 +120,28 @@ class PolicyNet(torch.nn.Module):
         std = std + 1e-8 * torch.ones(size=std.shape).to(self.device)
         return mu, std
 
-class ValueNet(torch.nn.Module):
-    def __init__(self, state_dim, hidden_dim):
-        super(ValueNet, self).__init__()
-        self.fc1 = torch.nn.Linear(state_dim, hidden_dim)
+class QValueNet(torch.nn.Module):
+    def __init__(self, state_dim, hidden_dim, action_dim):
+        super(QValueNet, self).__init__()
+        self.fc1 = torch.nn.Linear(state_dim + action_dim, hidden_dim)
         self.fc2 = torch.nn.Linear(hidden_dim, hidden_dim)
         self.fc3 = torch.nn.Linear(hidden_dim, 1)
 
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+    def forward(self, x, a):
+        cat = torch.cat([x, a], dim=1)  # 拼接状态和动作
+        x = F.relu(self.fc2(F.relu(self.fc1(cat))))
         return self.fc3(x)
 
 class WGCSL:
     ''' DDPG算法 '''
     def __init__(self, state_dim, hidden_dim, action_dim,
-                 actor_lr, critic_lr, lmbda, gamma, baw_delta, geaw_M, epochs, device):
+                 actor_lr, critic_lr, lmbda, gamma, baw_delta, geaw_M, epochs, tau, device):
         self.action_dim = action_dim
         self.actor = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
-        self.critic = ValueNet(state_dim, hidden_dim).to(device)
+        self.critic = QValueNet(state_dim, hidden_dim, action_dim).to(device)
+        self.target_critic = QValueNet(state_dim, hidden_dim, action_dim).to(device)
+        # 初始化目标价值网络并使其参数和价值网络一样
+        self.target_critic.load_state_dict(self.critic.state_dict())
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
                                                 lr=actor_lr)
@@ -146,6 +149,7 @@ class WGCSL:
                                                  lr=critic_lr)
         self.gamma = gamma
         self.lmbda = lmbda  # 高斯噪声的标准差,均值直接设为0
+        self.tau = tau  # 目标网络软更新参数
         self.device = device
         self.state_dim = state_dim
         self.hidden_dim = hidden_dim
@@ -184,15 +188,17 @@ class WGCSL:
         gamma_pow = torch.tensor(transition_dict['gamma_pow'],
                              dtype=torch.float).view(-1, 1).to(self.device)
 
-        td_target = rewards + self.gamma * self.critic(next_states) * (1 - dones)
+        mu_q_update,_ = self.actor(next_states)
+        q_targets = rewards + self.gamma * self.target_critic(next_states,mu_q_update) * (1 - dones)
         # MSE损失函数
         critic_loss = torch.mean(
-            F.mse_loss(self.critic(states), td_target))
+            F.mse_loss(self.critic(states, actions), q_targets))
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
-        td_delta = rewards + self.gamma * self.critic(next_states) * (1 - dones) - self.critic(states)
-        advantage = compute_advantage(self.gamma, self.lmbda, td_delta.cpu()).to(self.device)
+        self.soft_update(self.critic, self.target_critic)  # 软更新价值网络
+        mu_estimated,_ = self.actor(next_states)
+        advantage = self.critic(states, actions) - self.critic(states, mu_estimated)
         B_buffer.append(advantage.detach().cpu().numpy().copy())
 
         all_advantage_np = np.array(B_buffer).reshape(-1)

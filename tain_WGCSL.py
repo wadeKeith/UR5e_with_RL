@@ -62,7 +62,7 @@ sim_params = {"use_gui":False,
               'distance_threshold':0.05,}
 # env_kwargs_dict = {"sim_params":sim_params, "robot_params": robot_params, "visual_sensor_params": visual_sensor_params}
 
-use_expert_data = True
+use_expert_data = False
 
 env = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
 
@@ -80,6 +80,7 @@ lmbda = 0.95
 buffer_size = 100000
 minimal_episodes = 5
 n_train = 5
+tau = 0.01  # 软更新参数
 baw_delta = 0.05
 geaw_M = 10
 epochs = 100
@@ -107,7 +108,7 @@ else:
                                         achieved_goal_len=achieved_goal_len,)
     
 agent = WGCSL(state_dim, hidden_dim, action_dim,
-                 actor_lr, critic_lr, lmbda, gamma, baw_delta, geaw_M, epochs, device)
+                 actor_lr, critic_lr, lmbda, gamma, baw_delta, geaw_M, epochs, tau, device)
 
 load_agent = False 
 agent_num = 52
