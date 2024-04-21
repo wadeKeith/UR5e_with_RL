@@ -119,7 +119,18 @@ class PolicyNet(torch.nn.Module):
         std = F.softplus(self.fc_std(x))
         std = std + 1e-8 * torch.ones(size=std.shape).to(self.device)
         return mu, std
+class ValueNet(torch.nn.Module):
+    def __init__(self, state_dim, hidden_dim):
+        super(ValueNet, self).__init__()
+        self.fc1 = torch.nn.Linear(state_dim, hidden_dim)
+        self.fc2 = torch.nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = torch.nn.Linear(hidden_dim, 1)
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
 
+        return self.fc3(x)
+    
 class QValueNet(torch.nn.Module):
     def __init__(self, state_dim, hidden_dim, action_dim):
         super(QValueNet, self).__init__()
@@ -138,14 +149,17 @@ class WGCSL:
                  actor_lr, critic_lr, lmbda, gamma, baw_delta, geaw_M, epochs, tau, device):
         self.action_dim = action_dim
         self.actor = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
-        self.critic = QValueNet(state_dim, hidden_dim, action_dim).to(device)
-        self.target_critic = QValueNet(state_dim, hidden_dim, action_dim).to(device)
+        self.q_critic = QValueNet(state_dim, hidden_dim, action_dim).to(device)
+        self.target_q_critic = QValueNet(state_dim, hidden_dim, action_dim).to(device)
+        self.v_critic = ValueNet(state_dim,hidden_dim).to(device)
         # 初始化目标价值网络并使其参数和价值网络一样
-        self.target_critic.load_state_dict(self.critic.state_dict())
+        self.target_q_critic.load_state_dict(self.q_critic.state_dict())
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
                                                 lr=actor_lr)
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
+        self.q_critic_optimizer = torch.optim.Adam(self.q_critic.parameters(),
+                                                 lr=critic_lr)
+        self.v_critic_optimizer = torch.optim.Adam(self.v_critic.parameters(),
                                                  lr=critic_lr)
         self.gamma = gamma
         self.lmbda = lmbda  # 高斯噪声的标准差,均值直接设为0
@@ -153,7 +167,7 @@ class WGCSL:
         self.device = device
         self.state_dim = state_dim
         self.hidden_dim = hidden_dim
-        # self.percentile_num = 0
+        self.percentile_num = 0
         self.baw_delta = baw_delta
         self.geaw_M = geaw_M
         self.epochs = epochs
@@ -189,17 +203,23 @@ class WGCSL:
                              dtype=torch.float).view(-1, 1).to(self.device)
 
         mu_q_update,_ = self.actor(next_states)
-        q_targets = rewards + self.gamma * self.target_critic(next_states,mu_q_update) * (1 - dones)
+        q_targets = rewards + self.gamma * self.target_q_critic(next_states,mu_q_update) * (1 - dones)
         # MSE损失函数
-        critic_loss = torch.mean(
-            (self.critic(states, actions)-q_targets).pow(2))
-        self.critic_optimizer.zero_grad()
-        critic_loss.backward()
-        self.critic_optimizer.step()
-        self.soft_update(self.critic, self.target_critic)  # 软更新价值网络
+        q_critic_loss = torch.mean(
+            F.mse_loss(self.q_critic(states, actions), q_targets))
+        self.q_critic_optimizer.zero_grad()
+        q_critic_loss.backward()
+        self.q_critic_optimizer.step()
+        self.soft_update(self.q_critic, self.target_q_critic)  # 软更新价值网络
 
-        mu_estimated,_ = self.actor(next_states)
-        advantage = self.critic(states, actions) - self.critic(states, mu_estimated)
+        v_targets = rewards+self.gamma * self.v_critic(next_states) * (1-dones)
+        v_critic_loss = torch.mean(
+            F.mse_loss(self.v_critic(states), v_targets))
+        self.v_critic_optimizer.zero_grad()
+        v_critic_loss.backward()
+        self.v_critic_optimizer.step()
+
+        advantage = self.q_critic(states, actions) - self.v_critic(states)
         B_buffer.append(advantage.detach().cpu().numpy().copy())
 
         all_advantage_np = np.array(B_buffer).reshape(-1)
@@ -210,7 +230,7 @@ class WGCSL:
         # action_dis = torch.distributions.Normal(mu, sigma)
         # log_prob = action_dis.log_prob(actions)
         gamma_weigh = torch.tensor(self.gamma).pow(gamma_pow).to(self.device)
-        actor_loss = torch.mean(gamma_weigh * baw * geaw * (mu_actor_updata - actions).pow(2))
+        actor_loss = torch.mean(torch.sum(gamma_weigh * baw * geaw * (mu_actor_updata - actions).pow(2),dim = 1).pow(0.5)/self.action_dim)
 
         # 策略网络就是为了使Q值最大化
         self.actor_optimizer.zero_grad()
@@ -222,11 +242,13 @@ class WGCSL:
         lr_c_now = self.lr_c * (1 - total_steps / self.epochs)
         for p in self.actor_optimizer.param_groups:
             p["lr"] = lr_a_now
-        for p in self.critic_optimizer.param_groups:
+        for p in self.q_critic_optimizer.param_groups:
+            p["lr"] = lr_c_now
+        for p in self.v_critic_optimizer.param_groups:
             p["lr"] = lr_c_now
     def BAW_compute(self, advantage:np.ndarray, A_threshold):
         baw_temp = np.array(advantage>=A_threshold, dtype=np.float32)
         baw = np.where(baw_temp==0,self.baw_delta, baw_temp)
         return torch.tensor(baw)
-    def percentile_num_update(self,total_step):
-        self.percentile_num = 80/(self.epochs-1)*total_step
+    def percentile_num_update(self):
+        self.percentile_num = np.clip(self.percentile_num+0.15,0,80).item()

@@ -74,12 +74,12 @@ action_dim = env.action_space.shape[0]
 actor_lr = 1e-3
 critic_lr = 1e-3
 num_episodes = 100
-hidden_dim = 128
+hidden_dim = 256
 gamma = 0.99999
 lmbda = 0.95
 buffer_size = 100000
 minimal_episodes = 5
-n_train = 5
+n_train = 4
 tau = 0.01  # 软更新参数
 baw_delta = 0.05
 geaw_M = 10
@@ -95,7 +95,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 
 
 if use_expert_data:
-    with open('ur5_pickplace_10000_expert_data_WGCSL.pkl', 'rb') as f:
+    with open('ur5_pickplace_40000_expert_data_WGCSL.pkl', 'rb') as f:
     # 读取并反序列化数据
         her_buffer = pickle.load(f)
     f.close()
@@ -120,7 +120,6 @@ B_buffer = collections.deque(maxlen=B_capacity)
 return_list = []
 for i in range(100):
     agent.lr_decay(i)
-    agent.percentile_num_update(i)
     with tqdm(total=int(num_episodes), desc='Iteration %d' % i) as pbar:
         success_count = 0
         for i_episode in range(num_episodes):
@@ -135,15 +134,12 @@ for i in range(100):
                 done = terminated or truncated
                 episode_return += reward
                 traj.store_step(action.copy(), state.copy(), reward, done)
-            her_buffer.add_trajectory(traj)
+            # her_buffer.add_trajectory(traj)
             return_list.append(episode_return)
             if info['is_success'] == True:
                 success_count+=1
-                # her_buffer.add_trajectory(traj)
+                her_buffer.add_trajectory(traj)
             if her_buffer.size() >= minimal_episodes:
-                # her_buffer_len_ls = her_buffer.buffer[-1].length
-                # her_buffer_minlen_ls = [her_buffer.buffer[i].length for i in range(her_buffer.size())]
-                # her_ratio = (her_buffer_len_ls-1)/env.time_limitation
                 her_ratio = 1
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
@@ -180,6 +176,7 @@ for i in range(100):
                     "is success count": success_count,
                 })
             pbar.update(1)
+            agent.percentile_num_update()
     torch.save(agent.actor.state_dict(), "./model/wgcsl_her_ur5_pick_%d.pkl" % i)
     sim_params['is_train'] = False
     # sim_params['use_gui'] = True
