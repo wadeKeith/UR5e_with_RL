@@ -87,9 +87,9 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
     
 agent = PPOContinuous(state_dim, hidden_dim, action_dim, actor_lr, critic_lr, lmbda, epochs, eps, gamma, device, entropy_coef)
 
-# agent_num = 91
-# agent.actor.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_actor_%d.pkl" % agent_num))
-# agent.critic.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_critic_%d.pkl" % agent_num))
+agent_num = 97
+agent.actor.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_actor_%d.pkl" % agent_num))
+agent.critic.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_critic_%d.pkl" % agent_num))
 
 
 
