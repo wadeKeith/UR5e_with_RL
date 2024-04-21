@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 import torch
 import matplotlib.pyplot as plt
-from ppo import PPOContinuous, PolicyNet
+from ppo import PPOContinuous, PolicyNet, her_process
 import math
 import pickle
 import rl_utils
@@ -87,9 +87,9 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
     
 agent = PPOContinuous(state_dim, hidden_dim, action_dim, actor_lr, critic_lr, lmbda, epochs, eps, gamma, device, entropy_coef)
 
-agent_num = 91
-agent.actor.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_actor_%d.pkl" % agent_num))
-agent.critic.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_critic_%d.pkl" % agent_num))
+# agent_num = 91
+# agent.actor.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_actor_%d.pkl" % agent_num))
+# agent.critic.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_critic_%d.pkl" % agent_num))
 
 
 
@@ -124,6 +124,7 @@ for i in range(100):
             return_list.append(episode_return)
             if info['is_success'] == True:
                 success_count+=1
+            transition_dict = her_process(transition_dict, state_len, achieved_goal_len,sim_params['distance_threshold'])
             agent.update(transition_dict)
             transition_dict = {
                     "states": [],

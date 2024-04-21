@@ -4,6 +4,7 @@ from tqdm import tqdm
 import torch.nn.functional as F
 import os
 from torch.utils.data import DataLoader
+from utilize import distance
 
 
 def compute_advantage(gamma, lmbda, td_delta):
@@ -15,6 +16,38 @@ def compute_advantage(gamma, lmbda, td_delta):
         advantage_list.append(advantage)
     advantage_list.reverse()
     return torch.tensor(np.array(advantage_list), dtype=torch.float)
+
+def her_process(transition_dict,state_len,achieved_goal_len,distance_threshold):
+    rewards = transition_dict['rewards']
+    if rewards[-1] == 0:
+        return transition_dict
+    else:
+        initial_achieved_goal = transition_dict['states'][0][state_len:state_len+achieved_goal_len]
+        achived_goal_all = np.array(transition_dict['next_states'])[:,state_len:state_len+achieved_goal_len]
+        distances = np.linalg.norm(achived_goal_all-initial_achieved_goal,ord=2,axis=1)
+        if np.all(distances<=distance_threshold):
+            return transition_dict
+        else:
+            is_goal_np = distances<=distance_threshold
+            step_goal = np.random.choice(np.where(is_goal_np==False)[0])
+            goal = transition_dict['next_states'][step_goal][state_len:state_len+achieved_goal_len]
+            new_transition_dict = {'states':[],'actions':[],'next_states':[],'rewards':[],'dones':[]}
+            done = False
+            i = 0
+            while not done:
+                state = np.concatenate([transition_dict['states'][i][:state_len+achieved_goal_len],goal])
+                next_state = np.concatenate([transition_dict['next_states'][i][:state_len+achieved_goal_len],goal])
+                reward = -1 if distance(next_state[state_len:state_len+achieved_goal_len],goal)>distance_threshold else 0
+                done = reward==0
+                new_transition_dict['states'].append(state)
+                new_transition_dict['actions'].append(transition_dict['actions'][i])
+                new_transition_dict['next_states'].append(next_state)
+                new_transition_dict['rewards'].append(reward)
+                new_transition_dict['dones'].append(done)
+                i+=1
+            return new_transition_dict
+
+
 
 
 class PolicyNet(torch.nn.Module):
