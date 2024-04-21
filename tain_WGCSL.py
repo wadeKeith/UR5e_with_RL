@@ -95,10 +95,17 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
 
 
 if use_expert_data:
+    her_buffer = ReplayBuffer_Trajectory(capacity= buffer_size, 
+                                        dis_threshold=sim_params['distance_threshold'], 
+                                        use_her=True,
+                                        batch_size=batch_size,
+                                        state_len=state_len,
+                                        achieved_goal_len=achieved_goal_len,)
     with open('ur5_pickplace_40000_expert_data_WGCSL.pkl', 'rb') as f:
     # 读取并反序列化数据
-        her_buffer = pickle.load(f)
+        her_buffer_buffer = pickle.load(f)
     f.close()
+    her_buffer.buffer = her_buffer_buffer.buffer
 else:
     her_buffer = ReplayBuffer_Trajectory(capacity= buffer_size, 
                                         dis_threshold=sim_params['distance_threshold'], 
@@ -134,11 +141,11 @@ for i in range(100):
                 done = terminated or truncated
                 episode_return += reward
                 traj.store_step(action.copy(), state.copy(), reward, done)
-            # her_buffer.add_trajectory(traj)
+            her_buffer.add_trajectory(traj)
             return_list.append(episode_return)
             if info['is_success'] == True:
                 success_count+=1
-                her_buffer.add_trajectory(traj)
+                # her_buffer.add_trajectory(traj)
             if her_buffer.size() >= minimal_episodes:
                 her_ratio = 1
                 for _ in range(n_train):
