@@ -69,8 +69,8 @@ action_dim = env.action_space.shape[0]
 
 
 
-actor_lr = 1e-5
-critic_lr = 1e-5
+actor_lr = 3e-6
+critic_lr = 3e-6
 num_episodes = 100
 hidden_dim = 256
 gamma = 0.99999
@@ -126,8 +126,9 @@ for i in range(100):
                 success_count+=1
             transition_dict,her_info = her_process(transition_dict, state_len, achieved_goal_len,sim_params['distance_threshold'])
             trans_len = len(transition_dict['rewards'])
-            trans_done = 1 if transition_dict['rewards'][-1] == 0 else 0
-            agent.update(transition_dict)
+            if her_info!='cant her':
+            # trans_done = 1 if transition_dict['rewards'][-1] == 0 else 0
+                agent.update(transition_dict)
             transition_dict = {
                     "states": [],
                     "actions": [],
@@ -139,7 +140,7 @@ for i in range(100):
                 # 'goal':
                 # '%r' % (env.goal),
                 'trans_len':trans_len,
-                'trans_done':trans_done,
+                # 'trans_done':trans_done,
                 'her info':her_info,
                 'episode':
                     '%d' % (num_episodes* i + i_episode + 1),
