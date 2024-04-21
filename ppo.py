@@ -20,13 +20,13 @@ def compute_advantage(gamma, lmbda, td_delta):
 def her_process(transition_dict,state_len,achieved_goal_len,distance_threshold):
     rewards = transition_dict['rewards']
     if rewards[-1] == 0:
-        return transition_dict
+        return transition_dict,'is_goal'
     else:
         initial_achieved_goal = transition_dict['states'][0][state_len:state_len+achieved_goal_len]
         achived_goal_all = np.array(transition_dict['next_states'])[:,state_len:state_len+achieved_goal_len]
         distances = np.linalg.norm(achived_goal_all-initial_achieved_goal,ord=2,axis=1)
         if np.all(distances<=distance_threshold):
-            return transition_dict
+            return transition_dict,'cant her'
         else:
             is_goal_np = distances<=distance_threshold
             step_goal = np.random.choice(np.where(is_goal_np==False)[0])
@@ -45,7 +45,7 @@ def her_process(transition_dict,state_len,achieved_goal_len,distance_threshold):
                 new_transition_dict['rewards'].append(reward)
                 new_transition_dict['dones'].append(done)
                 i+=1
-            return new_transition_dict
+            return new_transition_dict,'her success'
 
 
 

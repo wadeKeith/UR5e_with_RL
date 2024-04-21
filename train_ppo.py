@@ -124,7 +124,9 @@ for i in range(100):
             return_list.append(episode_return)
             if info['is_success'] == True:
                 success_count+=1
-            transition_dict = her_process(transition_dict, state_len, achieved_goal_len,sim_params['distance_threshold'])
+            transition_dict,her_info = her_process(transition_dict, state_len, achieved_goal_len,sim_params['distance_threshold'])
+            trans_len = len(transition_dict['rewards'])
+            trans_done = 1 if transition_dict['rewards'][-1] == 0 else 0
             agent.update(transition_dict)
             transition_dict = {
                     "states": [],
@@ -136,6 +138,9 @@ for i in range(100):
             pbar.set_postfix({
                 # 'goal':
                 # '%r' % (env.goal),
+                'trans_len':trans_len,
+                'trans_done':trans_done,
+                'her info':her_info,
                 'episode':
                     '%d' % (num_episodes* i + i_episode + 1),
                 'return':
