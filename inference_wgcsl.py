@@ -11,7 +11,7 @@ import pickle
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     model = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
-    model.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_%d.pkl" % model_num))
+    model.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_actor_%d.pkl" % model_num))
     model.eval()
     episode_return = 0
     state,_,_ = env.reset()
@@ -85,7 +85,7 @@ evluation_policy(env=env, state_dim=30,
                     action_dim = 4,
                     hidden_dim=hidden_dim, 
                     device=device,
-                    model_num=4)
+                    model_num=35)
 env.close()
 del env
 

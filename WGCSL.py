@@ -68,7 +68,8 @@ class ReplayBuffer_Trajectory:
             gamma_pow = 0
 
 
-            if self.use_her and traj.rewards[-1] != 0:
+            # if self.use_her and traj.rewards[-1] != 0:
+            if self.use_her and np.random.uniform() <= her_ratio:
                 step_goal = np.random.randint(step_state + 1, traj.length + 1)
                 goal = traj.states[step_goal][self.state_len:self.state_len+self.achieved_goal_len].copy()   # 使用HER算法的future方案设置目标
                 dis = distance(next_state[self.state_len:self.state_len+self.achieved_goal_len], goal)

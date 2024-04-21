@@ -13,7 +13,7 @@ import collections
 
 def evluation_policy(env, state_dim, action_dim,hidden_dim, device, model_num):
     model = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
-    model.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_%d.pkl" % model_num))
+    model.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_actor_%d.pkl" % model_num))
     model.eval()
     episode_return = 0
     state,_,_ = env.reset()
@@ -141,13 +141,13 @@ for i in range(100):
                 done = terminated or truncated
                 episode_return += reward
                 traj.store_step(action.copy(), state.copy(), reward, done)
-            her_buffer.add_trajectory(traj)
+            # her_buffer.add_trajectory(traj)
             return_list.append(episode_return)
             if info['is_success'] == True:
                 success_count+=1
-                # her_buffer.add_trajectory(traj)
+                her_buffer.add_trajectory(traj)
             if her_buffer.size() >= minimal_episodes:
-                her_ratio = 1
+                her_ratio = 0.5
                 for _ in range(n_train):
                     transition_dict = her_buffer.sample(her_ratio)
                     agent.update(transition_dict,B_buffer)
@@ -184,7 +184,8 @@ for i in range(100):
                 })
             pbar.update(1)
             agent.percentile_num_update()
-    torch.save(agent.actor.state_dict(), "./model/wgcsl_her_ur5_pick_%d.pkl" % i)
+    torch.save(agent.actor.state_dict(), "./model/wgcsl_her_ur5_pick_actor_%d.pkl" % i)
+    torch.save(agent.v_critic.state_dict(), "./model/wgcsl_her_ur5_pick_critic_%d.pkl" % i)
     sim_params['is_train'] = False
     # sim_params['use_gui'] = True
     test_env  = PickPlace_UR5Env(sim_params, robot_params,visual_sensor_params)
