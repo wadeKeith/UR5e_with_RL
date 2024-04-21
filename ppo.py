@@ -85,15 +85,15 @@ class PPOContinuous:
         return action.detach().cpu().numpy()
 
     def update(self, transition_dict):
-        states = torch.tensor(transition_dict['states'],
+        states = torch.tensor(np.array(transition_dict['states']),
                               dtype=torch.float).to(self.device)
-        actions = torch.tensor(transition_dict['actions'],
+        actions = torch.tensor(np.array(transition_dict['actions']),
                                dtype=torch.float).to(self.device)
-        rewards = torch.tensor(transition_dict['rewards'],
+        rewards = torch.tensor(np.array(transition_dict['rewards']),
                                dtype=torch.float).view(-1, 1).to(self.device)
-        next_states = torch.tensor(transition_dict['next_states'],
+        next_states = torch.tensor(np.array(transition_dict['next_states']),
                                    dtype=torch.float).to(self.device)
-        dones = torch.tensor(transition_dict['dones'],
+        dones = torch.tensor(np.array(transition_dict['dones']),
                              dtype=torch.float).view(-1, 1).to(self.device)
         td_target = rewards + self.gamma * self.critic(next_states) * (1 - dones)
         td_delta = td_target - self.critic(states)
