@@ -69,8 +69,8 @@ action_dim = env.action_space.shape[0]
 
 
 
-actor_lr = 1e-6
-critic_lr = 1e-6
+actor_lr = 1e-5
+critic_lr = 1e-5
 num_episodes = 100
 hidden_dim = 256
 gamma = 0.99999
@@ -87,7 +87,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
     
 agent = PPOContinuous(state_dim, hidden_dim, action_dim, actor_lr, critic_lr, lmbda, epochs, eps, gamma, device, entropy_coef)
 
-agent_num = 65
+agent_num = 91
 agent.actor.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_actor_%d.pkl" % agent_num))
 agent.critic.load_state_dict(torch.load("./model/wgcsl_her_ur5_pick_critic_%d.pkl" % agent_num))
 
