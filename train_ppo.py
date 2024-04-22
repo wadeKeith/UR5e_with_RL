@@ -70,8 +70,8 @@ action_dim = env.action_space.shape[0]
 
 
 actor_lr = 3e-6
-critic_lr = 3e-6
-num_episodes = 100
+critic_lr = 1e-7
+num_episodes = 50
 hidden_dim = 256
 gamma = 0.99999
 lmbda = 0.95
@@ -102,7 +102,7 @@ transition_dict = {
                     "dones": [],
                 }
 for i in range(100):
-    # agent.lr_decay(i)
+    agent.lr_decay(i)
     with tqdm(total=int(num_episodes), desc='Iteration %d' % i) as pbar:
         success_count = 0
         for i_episode in range(num_episodes):
