@@ -102,7 +102,7 @@ transition_dict = {
                     "dones": [],
                 }
 for i in range(100):
-    agent.lr_decay(i)
+    # agent.lr_decay(i)
     with tqdm(total=int(num_episodes), desc='Iteration %d' % i) as pbar:
         success_count = 0
         for i_episode in range(num_episodes):
